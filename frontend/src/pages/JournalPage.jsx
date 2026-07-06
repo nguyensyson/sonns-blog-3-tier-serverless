@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useBlog } from '../context/BlogContext';
 import { ACCENTS } from '../data/posts';
-import RichTextEditor from '../components/RichTextEditor/RichTextEditor';
-import { isContentEmpty } from '../utils/contentSerializer';
 
-const EMPTY_FORM = { title: '', tag: '', excerpt: '', content: '', images: {}, coverIndex: 0 };
+const EMPTY_FORM = { title: '', tag: '', excerpt: '', date: '', coverIndex: 0, content: '', images: {} };
 
-export default function AdminPage() {
-  const { blogPosts, isLoggedIn, addPost, updatePost, deletePost } = useBlog();
+export default function JournalPage() {
+  const { journalEntries, isLoggedIn, addPost, updatePost, deletePost } = useBlog();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -38,66 +36,80 @@ export default function AdminPage() {
     setIsFormOpen(true);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!form.title.trim() || !form.excerpt.trim() || isContentEmpty(form.content)) return;
-    if (editingId != null) {
-      updatePost(editingId, form);
-    } else {
-      addPost(form);
-    }
-    closeForm();
-  };
-
-  const startEdit = (post) => {
-    setEditingId(post.id);
+  const startEdit = (entry) => {
+    setEditingId(entry.id);
     setForm({
-      title: post.title,
-      tag: post.tag,
-      excerpt: post.excerpt,
-      content: post.content,
-      images: post.images || {},
-      coverIndex: post.coverIndex,
+      title: entry.title,
+      tag: entry.tag,
+      excerpt: entry.excerpt,
+      date: entry.date,
+      coverIndex: entry.coverIndex,
+      content: entry.content || '',
+      images: entry.images || {},
     });
     setIsFormOpen(true);
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.title.trim() || !form.excerpt.trim()) return;
+    const payload = { ...form, category: 'journal' };
+    if (editingId != null) {
+      updatePost(editingId, payload);
+    } else {
+      addPost(payload);
+    }
+    closeForm();
+  };
+
   return (
-    <div className="admin-screen">
-      <div className="admin-list-header">
-        <h2 className="admin-list-heading">Tất cả bài viết ({blogPosts.length})</h2>
+    <div className="journal-screen">
+      <div className="journal-header">
+        <div>
+          <h1 className="journal-title">Nhật ký cá nhân</h1>
+          <p className="journal-subtitle">Chỉ mình bạn thấy được trang này.</p>
+        </div>
         <button type="button" className="btn-primary" onClick={openCreateForm}>
-          + Tạo bài viết mới
+          + Thêm mục nhật ký
         </button>
       </div>
-      <div className="admin-list">
-        {blogPosts.map((post) => {
-          const accent = ACCENTS[post.coverIndex % 2];
-          return (
-            <div className="admin-list-item" key={post.id}>
-              <span className="cover-dot admin-list-item-dot" style={{ background: accent }} />
-              <div className="admin-list-item-info">
-                <div className="admin-list-item-title">{post.title}</div>
-                <div className="admin-list-item-meta">
-                  {post.tag} · {post.date}
+
+      {journalEntries.length === 0 ? (
+        <div className="no-results">Chưa có mục nhật ký nào.</div>
+      ) : (
+        <div className="timeline">
+          {journalEntries.map((entry) => {
+            const accent = ACCENTS[entry.coverIndex % 2];
+            return (
+              <div className="timeline-item" key={entry.id}>
+                <span className="timeline-dot" style={{ borderColor: accent }} />
+                <div className="timeline-item-top">
+                  <div className="timeline-period" style={{ color: accent }}>
+                    {entry.date}
+                  </div>
+                  <div className="timeline-item-actions">
+                    <button className="admin-list-item-action edit" onClick={() => startEdit(entry)}>
+                      Sửa
+                    </button>
+                    <button className="admin-list-item-action delete" onClick={() => deletePost(entry.id)}>
+                      Xóa
+                    </button>
+                  </div>
                 </div>
+                <div className="timeline-title">{entry.title}</div>
+                {entry.tag && <div className="timeline-subtitle">{entry.tag}</div>}
+                <p className="timeline-desc">{entry.excerpt}</p>
               </div>
-              <button className="admin-list-item-action edit" onClick={() => startEdit(post)}>
-                Sửa
-              </button>
-              <button className="admin-list-item-action delete" onClick={() => deletePost(post.id)}>
-                Xóa
-              </button>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {isFormOpen && (
         <div className="modal-overlay" onClick={closeForm}>
           <div className="modal-card admin-form-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="admin-form-heading">{editingId != null ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới'}</h2>
+              <h2 className="admin-form-heading">{editingId != null ? 'Chỉnh sửa mục nhật ký' : 'Thêm mục nhật ký'}</h2>
               <button type="button" className="modal-close-btn" onClick={closeForm} aria-label="Đóng">
                 ✕
               </button>
@@ -105,31 +117,31 @@ export default function AdminPage() {
             <form className="form-col" onSubmit={handleSubmit}>
               <input
                 className="admin-text-input"
-                placeholder="Tiêu đề bài viết"
+                placeholder="Tiêu đề (VD: Cloud Engineer Intern)"
                 value={form.title}
                 onChange={updateField('title')}
               />
               <input
                 className="admin-text-input"
-                placeholder="Tag (VD: AWS, DevOps...)"
+                placeholder="Tổ chức / vai trò (VD: AWS Study Group)"
                 value={form.tag}
                 onChange={updateField('tag')}
               />
+              <input
+                className="admin-text-input"
+                placeholder="Thời gian (VD: Sep 2025 — Hiện tại)"
+                value={form.date}
+                onChange={updateField('date')}
+              />
               <textarea
                 className="admin-textarea"
-                placeholder="Mô tả ngắn"
-                rows={2}
+                placeholder="Nội dung nhật ký"
+                rows={5}
                 value={form.excerpt}
                 onChange={updateField('excerpt')}
               />
-              <RichTextEditor
-                key={editingId ?? 'new'}
-                content={form.content}
-                images={form.images}
-                onChange={({ content, images }) => setForm((f) => ({ ...f, content, images }))}
-              />
               <div>
-                <div className="cover-picker-label">Màu ảnh bìa</div>
+                <div className="cover-picker-label">Màu chấm mốc thời gian</div>
                 <div className="cover-picker-options">
                   {[0, 1].map((i) => {
                     const accent = ACCENTS[i];
@@ -150,7 +162,7 @@ export default function AdminPage() {
               </div>
               <div className="admin-form-actions">
                 <button type="submit" className="submit-btn">
-                  {editingId != null ? 'Cập nhật bài viết' : 'Đăng bài viết'}
+                  {editingId != null ? 'Cập nhật' : 'Lưu mục nhật ký'}
                 </button>
                 <button type="button" className="cancel-btn" onClick={closeForm}>
                   Hủy

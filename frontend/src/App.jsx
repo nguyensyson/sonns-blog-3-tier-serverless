@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import PostDetailPage from './pages/PostDetailPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/AdminPage';
+import JournalPage from './pages/JournalPage';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/post/:id" element={<PostDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/journal" element={<JournalPage />} />
           </Routes>
           <Footer />
         </div>

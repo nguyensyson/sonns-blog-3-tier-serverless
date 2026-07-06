@@ -4,7 +4,7 @@ import PostCard from '../components/PostCard';
 import TagFilter from '../components/TagFilter';
 
 export default function HomePage() {
-  const { posts } = useBlog();
+  const { blogPosts: posts } = useBlog();
   const [search, setSearch] = useState('');
   const [activeTag, setActiveTag] = useState('Tất cả');
 

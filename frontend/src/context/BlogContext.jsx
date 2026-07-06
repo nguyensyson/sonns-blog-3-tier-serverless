@@ -27,34 +27,60 @@ export function BlogProvider({ children }) {
 
   const logout = () => setIsLoggedIn(false);
 
-  const addPost = ({ title, tag, excerpt, content, images, coverIndex }) => {
-    const words = countWords(content);
-    const readTime = Math.max(1, Math.ceil(words / 200)) + ' phút đọc';
+  const addPost = ({ title, tag, excerpt, content, images, coverIndex, category, date }) => {
+    const finalCategory = category === 'journal' ? 'journal' : 'blog';
     const finalTag = tag.trim() || 'Khác';
     const newId = Math.max(0, ...posts.map((p) => p.id)) + 1;
     const today = new Date();
-    const date =
+    const todayLabel =
       String(today.getDate()).padStart(2, '0') +
       '/' +
       String(today.getMonth() + 1).padStart(2, '0') +
       '/' +
       today.getFullYear();
 
+    const finalDate = finalCategory === 'journal' ? (date || '').trim() || todayLabel : todayLabel;
+    const words = countWords(content);
+    const readTime = Math.max(1, Math.ceil(words / 200)) + ' phút đọc';
+
     setPosts((prev) => [
-      { id: newId, title, tag: finalTag, excerpt, date, readTime, content, images: images || {}, coverIndex },
+      {
+        id: newId,
+        category: finalCategory,
+        title,
+        tag: finalTag,
+        excerpt,
+        date: finalDate,
+        readTime,
+        content,
+        images: images || {},
+        coverIndex,
+      },
       ...prev,
     ]);
   };
 
-  const updatePost = (id, { title, tag, excerpt, content, images, coverIndex }) => {
+  const updatePost = (id, { title, tag, excerpt, content, images, coverIndex, category, date }) => {
+    const finalCategory = category === 'journal' ? 'journal' : 'blog';
+    const finalTag = tag.trim() || 'Khác';
     const words = countWords(content);
     const readTime = Math.max(1, Math.ceil(words / 200)) + ' phút đọc';
-    const finalTag = tag.trim() || 'Khác';
 
     setPosts((prev) =>
       prev.map((p) =>
         p.id === id
-          ? { ...p, title, tag: finalTag, excerpt, content, images: images || {}, readTime, coverIndex }
+          ? {
+              ...p,
+              category: finalCategory,
+              title,
+              tag: finalTag,
+              excerpt,
+              content,
+              images: images || {},
+              readTime,
+              coverIndex,
+              date: finalCategory === 'journal' ? (date || '').trim() || p.date : p.date,
+            }
           : p
       )
     );
@@ -62,9 +88,12 @@ export function BlogProvider({ children }) {
 
   const deletePost = (id) => setPosts((prev) => prev.filter((p) => p.id !== id));
 
+  const blogPosts = useMemo(() => posts.filter((p) => (p.category || 'blog') === 'blog'), [posts]);
+  const journalEntries = useMemo(() => posts.filter((p) => p.category === 'journal'), [posts]);
+
   const value = useMemo(
-    () => ({ posts, isLoggedIn, login, logout, addPost, updatePost, deletePost }),
-    [posts, isLoggedIn]
+    () => ({ posts, blogPosts, journalEntries, isLoggedIn, login, logout, addPost, updatePost, deletePost }),
+    [posts, blogPosts, journalEntries, isLoggedIn]
   );
 
   return <BlogContext.Provider value={value}>{children}</BlogContext.Provider>;

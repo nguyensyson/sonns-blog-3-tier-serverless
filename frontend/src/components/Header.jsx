@@ -21,6 +21,11 @@ export default function Header() {
             Quản trị
           </button>
         )}
+        {isLoggedIn && (
+          <button className="header-nav-link" onClick={() => navigate('/journal')}>
+            Nhật ký
+          </button>
+        )}
         {isLoggedIn ? (
           <button
             className="btn-outline"

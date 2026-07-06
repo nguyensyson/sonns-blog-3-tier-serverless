@@ -7,8 +7,8 @@ import { deserializeContent } from '../utils/contentSerializer';
 export default function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { posts } = useBlog();
-  const post = posts.find((p) => p.id === Number(id));
+  const { blogPosts } = useBlog();
+  const post = blogPosts.find((p) => p.id === Number(id));
 
   if (!post) {
     return (

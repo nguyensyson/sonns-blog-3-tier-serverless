@@ -1,9 +1,12 @@
 // Accent color per cover index: 0 = green, 1 = gold.
 export const ACCENTS = ['#34d399', '#e8b54a'];
 
+// `category` distinguishes public blog posts ('blog') from private journal
+// entries ('journal') within the same posts table.
 export const INITIAL_POSTS = [
   {
     id: 1,
+    category: 'blog',
     title: 'Thiết kế hạ tầng AWS chịu tải cao với Auto Scaling',
     tag: 'AWS',
     excerpt:
@@ -17,6 +20,7 @@ export const INITIAL_POSTS = [
   },
   {
     id: 2,
+    category: 'blog',
     title: 'CI/CD Pipeline với Jenkins và Docker: Từ code đến production',
     tag: 'CI/CD',
     excerpt:
@@ -30,6 +34,7 @@ export const INITIAL_POSTS = [
   },
   {
     id: 3,
+    category: 'blog',
     title: 'Kubernetes cơ bản: Triển khai ứng dụng Java Spring Boot',
     tag: 'Kubernetes',
     excerpt:
@@ -43,6 +48,7 @@ export const INITIAL_POSTS = [
   },
   {
     id: 4,
+    category: 'blog',
     title: 'Terraform: Quản lý hạ tầng dưới dạng code',
     tag: 'DevOps',
     excerpt:
@@ -56,6 +62,7 @@ export const INITIAL_POSTS = [
   },
   {
     id: 5,
+    category: 'blog',
     title: 'Bảo mật hạ tầng Cloud: Những nguyên tắc cơ bản',
     tag: 'Cloud Security',
     excerpt:
@@ -69,6 +76,7 @@ export const INITIAL_POSTS = [
   },
   {
     id: 6,
+    category: 'blog',
     title: 'Giám sát hệ thống với Prometheus và Grafana',
     tag: 'DevOps',
     excerpt:

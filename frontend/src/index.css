@@ -119,7 +119,7 @@ textarea:focus {
 /* Footer */
 .footer {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   padding: 28px 64px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 13px;
@@ -454,11 +454,74 @@ textarea:focus {
   padding: 48px 64px 100px;
 }
 
-.admin-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.1fr;
-  gap: 36px;
-  align-items: start;
+.admin-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-list-header .admin-list-heading {
+  margin: 0;
+}
+
+.admin-create-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-list-filter {
+  margin-bottom: 20px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 56px 24px;
+  overflow-y: auto;
+  background: rgba(5, 8, 11, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 1200px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.modal-header .admin-form-heading {
+  margin: 0;
+}
+
+.modal-close-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: #c7cfcd;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f2f5f4;
 }
 
 .admin-form-card {
@@ -466,6 +529,7 @@ textarea:focus {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   padding: 28px;
+  min-width: 0;
 }
 
 .admin-form-heading {
@@ -617,7 +681,8 @@ textarea:focus {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   background: #0e1319;
-  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .rte-toolbar {
@@ -628,6 +693,8 @@ textarea:focus {
   padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: #12171f;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
 }
 
 .rte-sep {
@@ -721,16 +788,21 @@ textarea:focus {
 
 .rte-content {
   padding: 14px 16px;
-  max-height: 420px;
+  height: 320px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
 }
 
 .rte-content .ProseMirror {
   outline: none;
-  min-height: 220px;
+  min-height: 100%;
   font-size: 14px;
   line-height: 1.7;
   color: #f2f5f4;
+  overflow-wrap: anywhere;
 }
 
 .rte-content .ProseMirror p {
@@ -846,4 +918,108 @@ textarea:focus {
   .rte-select {
     font-size: 12px;
   }
+}
+
+/* Journal page */
+.journal-screen {
+  position: relative;
+  z-index: 2;
+  padding: 56px 64px 100px;
+}
+
+.journal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 44px;
+}
+
+.journal-title {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0 0 12px;
+}
+
+.journal-subtitle {
+  font-size: 15px;
+  color: #9aa5a3;
+  margin: 0;
+}
+
+.timeline {
+  position: relative;
+  max-width: 760px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 34px;
+  margin-bottom: 40px;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0a0e13;
+  border: 2px solid;
+}
+
+.timeline-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.timeline-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.timeline-period {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.timeline-title {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.timeline-subtitle {
+  font-size: 15px;
+  color: #9aa5a3;
+  margin-bottom: 14px;
+}
+
+.timeline-desc {
+  font-size: 15px;
+  line-height: 1.75;
+  color: #c7cfcd;
+  max-width: 700px;
 }
