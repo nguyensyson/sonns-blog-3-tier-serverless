@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useBlog } from '../context/BlogContext';
 import { ACCENTS } from '../data/posts';
+import { getErrorMessage } from '../api/client';
 
 const EMPTY_FORM = { title: '', tag: '', excerpt: '', date: '', coverIndex: 0, content: '', images: {} };
 
@@ -10,6 +11,8 @@ export default function JournalPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isFormOpen) return;
@@ -28,11 +31,13 @@ export default function JournalPage() {
     setIsFormOpen(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setError('');
   };
 
   const openCreateForm = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setError('');
     setIsFormOpen(true);
   };
 
@@ -50,16 +55,23 @@ export default function JournalPage() {
     setIsFormOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.excerpt.trim()) return;
     const payload = { ...form, category: 'journal' };
-    if (editingId != null) {
-      updatePost(editingId, payload);
-    } else {
-      addPost(payload);
+    setIsSubmitting(true);
+    try {
+      if (editingId != null) {
+        await updatePost(editingId, payload);
+      } else {
+        await addPost(payload);
+      }
+      closeForm();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
     }
-    closeForm();
   };
 
   return (
@@ -91,7 +103,10 @@ export default function JournalPage() {
                     <button className="admin-list-item-action edit" onClick={() => startEdit(entry)}>
                       Sửa
                     </button>
-                    <button className="admin-list-item-action delete" onClick={() => deletePost(entry.id)}>
+                    <button
+                      className="admin-list-item-action delete"
+                      onClick={() => deletePost(entry.id, 'journal').catch((err) => window.alert(getErrorMessage(err)))}
+                    >
                       Xóa
                     </button>
                   </div>
@@ -160,9 +175,10 @@ export default function JournalPage() {
                   })}
                 </div>
               </div>
+              {error && <div className="form-error">{error}</div>}
               <div className="admin-form-actions">
-                <button type="submit" className="submit-btn">
-                  {editingId != null ? 'Cập nhật' : 'Lưu mục nhật ký'}
+                <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                  {isSubmitting ? 'Đang lưu...' : editingId != null ? 'Cập nhật' : 'Lưu mục nhật ký'}
                 </button>
                 <button type="button" className="cancel-btn" onClick={closeForm}>
                   Hủy

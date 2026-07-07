@@ -1,229 +1,109 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { tasksApi } from '../api/tasks';
 
-// Data layer for the Personal Task Manager. Persists to localStorage for the
-// demo; swap loadState/persist for real API calls later without touching
-// the component tree that consumes this hook.
-const STORAGE_KEY = 'personal-task-manager:v1';
-
-function uid(prefix) {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+function mapTask(task) {
+  return {
+    id: task.taskId,
+    groupId: task.groupId,
+    title: task.title,
+    description: task.description || '',
+    dueDate: task.dueDate || '',
+    isDone: task.isDone,
+    completedAt: task.completedAt,
+    order: task.order,
+  };
 }
 
-function todayPlusDays(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  // Build the local calendar date manually — toISOString() converts to UTC
-  // first, which silently shifts the date near midnight in most timezones.
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+function mapGroup(group) {
+  return {
+    id: group.groupId,
+    name: group.name,
+    order: group.order,
+    tasks: (group.tasks || []).map(mapTask),
+  };
 }
 
-function seedState() {
-  const groups = [
-    { id: 'g-work', name: 'Công việc', order: 0 },
-    { id: 'g-personal', name: 'Cá nhân', order: 1 },
-  ];
-  const tasks = [
-    {
-      id: uid('t'),
-      groupId: 'g-work',
-      title: 'Chuẩn bị slide demo sản phẩm',
-      description: '',
-      dueDate: todayPlusDays(-1),
-      isDone: false,
-      completedAt: null,
-      order: 0,
-    },
-    {
-      id: uid('t'),
-      groupId: 'g-work',
-      title: 'Review pull request của team',
-      description: '',
-      dueDate: todayPlusDays(0),
-      isDone: false,
-      completedAt: null,
-      order: 1,
-    },
-    {
-      id: uid('t'),
-      groupId: 'g-personal',
-      title: 'Đi chợ mua đồ ăn tuần này',
-      description: '',
-      dueDate: todayPlusDays(3),
-      isDone: false,
-      completedAt: null,
-      order: 0,
-    },
-    {
-      id: uid('t'),
-      groupId: 'g-work',
-      title: 'Viết báo cáo tuần trước',
-      description: '',
-      dueDate: todayPlusDays(-3),
-      isDone: true,
-      completedAt: new Date().toISOString(),
-      order: 2,
-    },
-  ];
-  return { groups, tasks };
-}
+// `enabled` gates all requests behind login state - the /groups and /tasks
+// endpoints require auth, so this must stay idle until the caller is logged in.
+export function useTasks(enabled) {
+  const [groups, setGroups] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.groups) && Array.isArray(parsed.tasks)) return parsed;
-    }
-  } catch {
-    // corrupt storage, fall through to seed data
-  }
-  return seedState();
-}
-
-export function useTasks() {
-  const [state, setState] = useState(loadState);
+  const refresh = useCallback(async () => {
+    const res = await tasksApi.listGroups();
+    setGroups(res.data.map(mapGroup));
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    if (!enabled) {
+      setGroups([]);
+      return;
+    }
+    setIsLoading(true);
+    refresh().finally(() => setIsLoading(false));
+  }, [enabled, refresh]);
 
-  const groups = useMemo(() => [...state.groups].sort((a, b) => a.order - b.order), [state.groups]);
+  const sortedGroups = useMemo(() => [...groups].sort((a, b) => a.order - b.order), [groups]);
+
+  const tasks = useMemo(() => sortedGroups.flatMap((g) => g.tasks), [sortedGroups]);
 
   const activeTaskIdsByGroup = useMemo(() => {
     const map = {};
-    groups.forEach((g) => {
-      map[g.id] = [];
+    sortedGroups.forEach((g) => {
+      map[g.id] = g.tasks
+        .filter((t) => !t.isDone)
+        .sort((a, b) => a.order - b.order)
+        .map((t) => t.id);
     });
-    state.tasks
-      .filter((t) => !t.isDone)
-      .sort((a, b) => a.order - b.order)
-      .forEach((t) => {
-        if (map[t.groupId]) map[t.groupId].push(t.id);
-      });
     return map;
-  }, [groups, state.tasks]);
+  }, [sortedGroups]);
 
   const completedTasks = useMemo(
     () =>
-      state.tasks
+      tasks
         .filter((t) => t.isDone)
         .sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0)),
-    [state.tasks]
+    [tasks]
   );
 
-  const addGroup = (name) => {
-    setState((prev) => ({
-      ...prev,
-      groups: [...prev.groups, { id: uid('g'), name, order: prev.groups.length }],
-    }));
-  };
+  const addGroup = (name) => tasksApi.createGroup(name).then(refresh);
 
-  const renameGroup = (groupId, name) => {
-    setState((prev) => ({
-      ...prev,
-      groups: prev.groups.map((g) => (g.id === groupId ? { ...g, name } : g)),
-    }));
-  };
+  const renameGroup = (groupId, name) => tasksApi.renameGroup(groupId, name).then(refresh);
 
-  const deleteGroup = (groupId) => {
-    setState((prev) => ({
-      groups: prev.groups.filter((g) => g.id !== groupId).map((g, index) => ({ ...g, order: index })),
-      tasks: prev.tasks.filter((t) => t.groupId !== groupId),
-    }));
-  };
+  const deleteGroup = (groupId) => tasksApi.deleteGroup(groupId).then(refresh);
 
-  // orderedIds: group ids in their final desired order, produced by the
-  // drag-and-drop layer after reordering the group columns.
-  const reorderGroups = (orderedIds) => {
-    setState((prev) => {
-      const positions = Object.fromEntries(orderedIds.map((id, index) => [id, index]));
-      return {
-        ...prev,
-        groups: prev.groups.map((g) => (positions[g.id] !== undefined ? { ...g, order: positions[g.id] } : g)),
-      };
-    });
-  };
+  const reorderGroups = (orderedIds) => tasksApi.reorderGroups(orderedIds).then(refresh);
 
-  const addTask = (groupId, { title, dueDate }) => {
-    setState((prev) => {
-      const siblingCount = prev.tasks.filter((t) => t.groupId === groupId && !t.isDone).length;
-      const task = {
-        id: uid('t'),
-        groupId,
-        title,
-        description: '',
-        dueDate: dueDate || '',
-        isDone: false,
-        completedAt: null,
-        order: siblingCount,
-      };
-      return { ...prev, tasks: [...prev.tasks, task] };
-    });
-  };
+  const addTask = (groupId, { title, dueDate }) =>
+    tasksApi.createTask(groupId, { title, description: '', dueDate }).then(refresh);
 
-  const updateTask = (taskId, { title, description, dueDate }) => {
-    setState((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((t) => (t.id === taskId ? { ...t, title, description, dueDate } : t)),
-    }));
-  };
+  const updateTask = (taskId, { title, description, dueDate }) =>
+    tasksApi.updateTask(taskId, { title, description, dueDate }).then(refresh);
 
-  const deleteTask = (taskId) => {
-    setState((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== taskId) }));
-  };
+  const deleteTask = (taskId) => tasksApi.deleteTask(taskId).then(refresh);
 
-  const toggleDone = (taskId) => {
-    setState((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((t) =>
-        t.id === taskId ? { ...t, isDone: true, completedAt: new Date().toISOString() } : t
-      ),
-    }));
-  };
+  const toggleDone = (taskId) => tasksApi.completeTask(taskId).then(refresh);
 
-  const reopenTask = (taskId) => {
-    setState((prev) => {
-      const task = prev.tasks.find((t) => t.id === taskId);
-      if (!task) return prev;
-      const siblingCount = prev.tasks.filter(
-        (t) => t.groupId === task.groupId && !t.isDone && t.id !== taskId
-      ).length;
-      return {
-        ...prev,
-        tasks: prev.tasks.map((t) =>
-          t.id === taskId ? { ...t, isDone: false, completedAt: null, order: siblingCount } : t
-        ),
-      };
-    });
-  };
+  const reopenTask = (taskId) => tasksApi.reopenTask(taskId).then(refresh);
 
   // containers: { [groupId]: [taskId, ...] } in final desired order, produced
-  // by the drag-and-drop layer after a reorder / cross-group move.
+  // by the drag-and-drop layer after a reorder / cross-group move. Persists
+  // every active task's (groupId, order) so the backend matches the UI.
   const applyReorder = (containers) => {
-    setState((prev) => {
-      const positions = {};
-      Object.entries(containers).forEach(([groupId, ids]) => {
-        ids.forEach((id, index) => {
-          positions[id] = { groupId, order: index };
-        });
-      });
-      return {
-        ...prev,
-        tasks: prev.tasks.map((t) =>
-          positions[t.id] ? { ...t, groupId: positions[t.id].groupId, order: positions[t.id].order } : t
-        ),
-      };
-    });
+    const moves = Object.entries(containers).flatMap(([groupId, ids]) =>
+      ids.map((taskId, order) => ({ taskId, groupId, order }))
+    );
+    return Promise.all(moves.map(({ taskId, groupId, order }) => tasksApi.moveTask(taskId, { groupId, order }))).then(
+      refresh
+    );
   };
 
   return {
-    groups,
-    tasks: state.tasks,
+    groups: sortedGroups,
+    tasks,
     activeTaskIdsByGroup,
     completedTasks,
+    isLoading,
     addGroup,
     renameGroup,
     deleteGroup,

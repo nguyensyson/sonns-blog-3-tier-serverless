@@ -1,23 +1,46 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
-import { useBlog } from '../context/BlogContext';
+import { postsApi } from '../api/posts';
+import { getErrorMessage } from '../api/client';
 import { ACCENTS } from '../data/posts';
 import { deserializeContent } from '../utils/contentSerializer';
 
 export default function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { blogPosts } = useBlog();
-  const post = blogPosts.find((p) => p.id === Number(id));
+  const [post, setPost] = useState(null);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!post) {
+  useEffect(() => {
+    setIsLoading(true);
+    setError('');
+    postsApi
+      .getBlog(id)
+      .then((res) => setPost(res.data))
+      .catch((err) => setError(getErrorMessage(err)))
+      .finally(() => setIsLoading(false));
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="detail-screen">
+        <div className="detail-wrap">
+          <div className="no-results">Đang tải bài viết...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !post) {
     return (
       <div className="detail-screen">
         <div className="detail-wrap">
           <button className="back-link" onClick={() => navigate('/')}>
             ← Quay lại danh sách
           </button>
-          <div className="no-results">Không tìm thấy bài viết.</div>
+          <div className="no-results">{error || 'Không tìm thấy bài viết.'}</div>
         </div>
       </div>
     );

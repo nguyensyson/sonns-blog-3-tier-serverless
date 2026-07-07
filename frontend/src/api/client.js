@@ -16,15 +16,18 @@ class ApiError extends Error {
 
 async function request(path, { method = 'GET', body, headers, ...rest } = {}) {
   const token = localStorage.getItem('authToken');
+  // FormData (image uploads) must keep its own multipart Content-Type
+  // (with boundary) set by the browser - never JSON-encode or override it.
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const response = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
     ...rest,
   });
 
@@ -45,5 +48,11 @@ export const apiClient = {
   patch: (path, body, options) => request(path, { ...options, method: 'PATCH', body }),
   delete: (path, options) => request(path, { ...options, method: 'DELETE' }),
 };
+
+// Backend error envelope is { success: false, error: { code, message, details } }.
+export function getErrorMessage(err) {
+  if (err instanceof ApiError) return err.body?.error?.message || err.message;
+  return 'Đã xảy ra lỗi. Vui lòng thử lại.';
+}
 
 export { ApiError };

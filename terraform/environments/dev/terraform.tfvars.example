@@ -1,5 +1,5 @@
 aws_region   = "ap-southeast-1"
-project_name = "sonns-blog"
+project_name = "sonns-blogs"
 environment  = "dev"
 owner        = "sonns"
 cost_center  = ""

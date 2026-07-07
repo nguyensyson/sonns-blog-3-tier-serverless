@@ -18,10 +18,18 @@ import CompletedTasksPanel from '../components/tasks/CompletedTasksPanel';
 import TaskEditModal from '../components/tasks/TaskEditModal';
 import ConfirmDialog from '../components/tasks/ConfirmDialog';
 import { formatDisplayDate } from '../utils/taskDate';
+import { getErrorMessage } from '../api/client';
 
 function findContainer(containers, id) {
   if (id in containers) return id;
   return Object.keys(containers).find((key) => containers[key].includes(id));
+}
+
+// Every task mutation goes to the backend now, so failures (network, auth,
+// ownership) need surfacing instead of failing silently.
+function reportError(promise) {
+  promise.catch((err) => window.alert(getErrorMessage(err)));
+  return promise;
 }
 
 export default function TasksPage() {
@@ -31,6 +39,7 @@ export default function TasksPage() {
     tasks,
     activeTaskIdsByGroup,
     completedTasks,
+    isLoading,
     addGroup,
     renameGroup,
     deleteGroup,
@@ -41,7 +50,7 @@ export default function TasksPage() {
     toggleDone,
     reopenTask,
     applyReorder,
-  } = useTasks();
+  } = useTasks(isLoggedIn);
 
   const [containers, setContainers] = useState(activeTaskIdsByGroup);
   const [isDragging, setIsDragging] = useState(false);
@@ -101,7 +110,7 @@ export default function TasksPage() {
         const oldIndex = groupIds.indexOf(active.id);
         const newIndex = groupIds.indexOf(overGroupId);
         if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          reorderGroups(arrayMove(groupIds, oldIndex, newIndex));
+          reportError(reorderGroups(arrayMove(groupIds, oldIndex, newIndex)));
         }
       }
       return;
@@ -124,24 +133,24 @@ export default function TasksPage() {
       }
     }
     setContainers(finalContainers);
-    applyReorder(finalContainers);
+    reportError(applyReorder(finalContainers));
   };
 
   const submitNewGroup = (e) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
-    addGroup(newGroupName.trim());
+    reportError(addGroup(newGroupName.trim()));
     setNewGroupName('');
     setIsAddingGroup(false);
   };
 
   const confirmDeleteForever = () => {
-    if (deletingTask) deleteTask(deletingTask.id);
+    if (deletingTask) reportError(deleteTask(deletingTask.id));
     setDeletingTask(null);
   };
 
   const confirmDeleteGroup = () => {
-    if (deletingGroup) deleteGroup(deletingGroup.id);
+    if (deletingGroup) reportError(deleteGroup(deletingGroup.id));
     setDeletingGroup(null);
   };
 
@@ -175,6 +184,8 @@ export default function TasksPage() {
         )}
       </div>
 
+      {isLoading && <div className="no-results">Đang tải...</div>}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -190,12 +201,12 @@ export default function TasksPage() {
                 group={group}
                 taskIds={liveContainers[group.id] || []}
                 tasksById={tasksById}
-                onRenameGroup={renameGroup}
+                onRenameGroup={(groupId, name) => reportError(renameGroup(groupId, name))}
                 onDeleteGroup={setDeletingGroup}
-                onAddTask={addTask}
-                onToggleDone={toggleDone}
+                onAddTask={(groupId, payload) => reportError(addTask(groupId, payload))}
+                onToggleDone={(taskId) => reportError(toggleDone(taskId))}
                 onEditTask={setEditingTask}
-                onDeleteTask={deleteTask}
+                onDeleteTask={(taskId) => reportError(deleteTask(taskId))}
               />
             ))}
           </div>
@@ -217,7 +228,7 @@ export default function TasksPage() {
       <CompletedTasksPanel
         tasks={completedTasks}
         groupsById={groupsById}
-        onReopen={reopenTask}
+        onReopen={(taskId) => reportError(reopenTask(taskId))}
         onDeleteForever={setDeletingTask}
       />
 
@@ -226,7 +237,7 @@ export default function TasksPage() {
           task={editingTask}
           onClose={() => setEditingTask(null)}
           onSave={(id, payload) => {
-            updateTask(id, payload);
+            reportError(updateTask(id, payload));
             setEditingTask(null);
           }}
         />

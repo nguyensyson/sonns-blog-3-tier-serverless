@@ -1,99 +1,186 @@
-import { createContext, useContext, useMemo, useState } from 'react';
-import { INITIAL_POSTS } from '../data/posts';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { login as apiLogin } from '../api/auth';
+import { getMe } from '../api/users';
+import { postsApi } from '../api/posts';
+import { getErrorMessage } from '../api/client';
 
-const DEMO_EMAIL = 'demo@blog.dev';
-const DEMO_PASSWORD = '123456';
+const TOKEN_KEY = 'authToken';
+const REFRESH_KEY = 'refreshToken';
 
-// Word count for the "read time" estimate, ignoring HTML tags and image
-// placeholders so they don't inflate the count.
-function countWords(content) {
-  const text = content.replace(/<[^>]*>/g, ' ').replace(/\{\{[^{}]+\}\}/g, ' ');
-  return text.split(/\s+/).filter(Boolean).length;
+function mapPost(post) {
+  return {
+    id: post.postId,
+    authorId: post.authorId,
+    category: post.category,
+    title: post.title,
+    tag: post.tag,
+    excerpt: post.excerpt,
+    content: post.content,
+    images: post.images || {},
+    coverIndex: post.coverIndex,
+    date: post.date,
+    readTime: post.readTime,
+    isOwner: post.isOwner,
+  };
+}
+
+// Uploads any pending data: URLs (freshly picked images still living only in
+// the browser) to S3 and swaps them for the returned URL, so the persisted
+// post never stores base64 blobs (DynamoDB item size limits, payload size).
+async function resolveImages(images) {
+  const entries = await Promise.all(
+    Object.entries(images || {}).map(async ([placeholder, src]) => {
+      if (typeof src !== 'string' || !src.startsWith('data:')) return [placeholder, src];
+      const file = dataUrlToFile(src, placeholder);
+      const res = await postsApi.uploadImage(file);
+      return [placeholder, res.data.url];
+    })
+  );
+  return Object.fromEntries(entries);
+}
+
+function dataUrlToFile(dataUrl, filename) {
+  const [header, base64] = dataUrl.split(',');
+  const mime = /data:(.*?);base64/.exec(header)?.[1] || 'image/png';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], filename, { type: mime });
+}
+
+function toApiBody({ title, tag, excerpt, content, images, coverIndex, date }) {
+  return {
+    title,
+    tag: (tag || '').trim(),
+    excerpt,
+    content,
+    images: images || {},
+    coverIndex,
+    date,
+  };
 }
 
 const BlogContext = createContext(null);
 
 export function BlogProvider({ children }) {
-  const [posts, setPosts] = useState(INITIAL_POSTS);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [journalEntries, setJournalEntries] = useState([]);
 
-  const login = (email, password) => {
-    if (email.trim() === DEMO_EMAIL && password === DEMO_PASSWORD) {
+  const loadBlogPosts = useCallback(async () => {
+    const res = await postsApi.listBlog();
+    setBlogPosts(res.data.items.map(mapPost));
+  }, []);
+
+  const loadJournalEntries = useCallback(async () => {
+    const res = await postsApi.listDiary();
+    setJournalEntries(res.data.items.map(mapPost));
+  }, []);
+
+  useEffect(() => {
+    loadBlogPosts().catch(() => {});
+  }, [loadBlogPosts]);
+
+  // Validate any token left over from a previous session before trusting it -
+  // it may have expired since the last visit.
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setAuthChecked(true);
+      return;
+    }
+    getMe()
+      .then(() => setIsLoggedIn(true))
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_KEY);
+      })
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setJournalEntries([]);
+      return;
+    }
+    loadJournalEntries().catch(() => {});
+  }, [isLoggedIn, loadJournalEntries]);
+
+  const login = async (email, password) => {
+    try {
+      const res = await apiLogin(email.trim(), password);
+      localStorage.setItem(TOKEN_KEY, res.data.accessToken);
+      localStorage.setItem(REFRESH_KEY, res.data.refreshToken);
       setIsLoggedIn(true);
       return { ok: true };
+    } catch (err) {
+      return { ok: false, error: getErrorMessage(err) };
     }
-    return { ok: false, error: 'Sai email hoặc mật khẩu. Dùng demo@blog.dev / 123456.' };
   };
 
-  const logout = () => setIsLoggedIn(false);
+  const logout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+    setIsLoggedIn(false);
+  };
 
-  const addPost = ({ title, tag, excerpt, content, images, coverIndex, category, date }) => {
+  const resolveCategory = (id, payloadCategory) => {
+    if (payloadCategory === 'journal' || payloadCategory === 'blog') return payloadCategory;
+    return journalEntries.some((p) => p.id === id) ? 'journal' : 'blog';
+  };
+
+  const addPost = async ({ category, ...form }) => {
     const finalCategory = category === 'journal' ? 'journal' : 'blog';
-    const finalTag = tag.trim() || 'Khác';
-    const newId = Math.max(0, ...posts.map((p) => p.id)) + 1;
-    const today = new Date();
-    const todayLabel =
-      String(today.getDate()).padStart(2, '0') +
-      '/' +
-      String(today.getMonth() + 1).padStart(2, '0') +
-      '/' +
-      today.getFullYear();
-
-    const finalDate = finalCategory === 'journal' ? (date || '').trim() || todayLabel : todayLabel;
-    const words = countWords(content);
-    const readTime = Math.max(1, Math.ceil(words / 200)) + ' phút đọc';
-
-    setPosts((prev) => [
-      {
-        id: newId,
-        category: finalCategory,
-        title,
-        tag: finalTag,
-        excerpt,
-        date: finalDate,
-        readTime,
-        content,
-        images: images || {},
-        coverIndex,
-      },
-      ...prev,
-    ]);
+    const body = toApiBody(form);
+    body.images = await resolveImages(body.images);
+    if (finalCategory === 'journal') {
+      await postsApi.createDiary(body);
+      await loadJournalEntries();
+    } else {
+      await postsApi.createBlog(body);
+      await loadBlogPosts();
+    }
   };
 
-  const updatePost = (id, { title, tag, excerpt, content, images, coverIndex, category, date }) => {
-    const finalCategory = category === 'journal' ? 'journal' : 'blog';
-    const finalTag = tag.trim() || 'Khác';
-    const words = countWords(content);
-    const readTime = Math.max(1, Math.ceil(words / 200)) + ' phút đọc';
-
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              category: finalCategory,
-              title,
-              tag: finalTag,
-              excerpt,
-              content,
-              images: images || {},
-              readTime,
-              coverIndex,
-              date: finalCategory === 'journal' ? (date || '').trim() || p.date : p.date,
-            }
-          : p
-      )
-    );
+  const updatePost = async (id, { category, ...form }) => {
+    const finalCategory = resolveCategory(id, category);
+    const body = toApiBody(form);
+    body.images = await resolveImages(body.images);
+    if (finalCategory === 'journal') {
+      await postsApi.updateDiary(id, body);
+      await loadJournalEntries();
+    } else {
+      await postsApi.updateBlog(id, body);
+      await loadBlogPosts();
+    }
   };
 
-  const deletePost = (id) => setPosts((prev) => prev.filter((p) => p.id !== id));
-
-  const blogPosts = useMemo(() => posts.filter((p) => (p.category || 'blog') === 'blog'), [posts]);
-  const journalEntries = useMemo(() => posts.filter((p) => p.category === 'journal'), [posts]);
+  const deletePost = async (id, category) => {
+    const finalCategory = resolveCategory(id, category);
+    if (finalCategory === 'journal') {
+      await postsApi.deleteDiary(id);
+      setJournalEntries((prev) => prev.filter((p) => p.id !== id));
+    } else {
+      await postsApi.deleteBlog(id);
+      setBlogPosts((prev) => prev.filter((p) => p.id !== id));
+    }
+  };
 
   const value = useMemo(
-    () => ({ posts, blogPosts, journalEntries, isLoggedIn, login, logout, addPost, updatePost, deletePost }),
-    [posts, blogPosts, journalEntries, isLoggedIn]
+    () => ({
+      blogPosts,
+      journalEntries,
+      isLoggedIn,
+      authChecked,
+      login,
+      logout,
+      addPost,
+      updatePost,
+      deletePost,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [blogPosts, journalEntries, isLoggedIn, authChecked]
   );
 
   return <BlogContext.Provider value={value}>{children}</BlogContext.Provider>;
