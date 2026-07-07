@@ -60,6 +60,12 @@ variable "reserved_concurrent_executions" {
   default     = -1
 }
 
+variable "layers" {
+  description = "ARNs of Lambda Layers to attach (e.g. the shared common layer with FastAPI/boto3/JWT deps)."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Tags applied to the function."
   type        = map(string)

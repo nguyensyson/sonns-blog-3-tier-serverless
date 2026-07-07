@@ -1,17 +1,17 @@
 output "lambda_log_group_name" {
-  value = aws_cloudwatch_log_group.lambda.name
+  value = var.lambda_function_name != null ? aws_cloudwatch_log_group.lambda[0].name : null
 }
 
 output "lambda_log_group_arn" {
-  value = aws_cloudwatch_log_group.lambda.arn
+  value = var.lambda_function_name != null ? aws_cloudwatch_log_group.lambda[0].arn : null
 }
 
 output "api_gateway_log_group_name" {
-  value = aws_cloudwatch_log_group.api_gateway.name
+  value = var.api_gateway_name != null ? aws_cloudwatch_log_group.api_gateway[0].name : null
 }
 
 output "api_gateway_log_group_arn" {
-  value = aws_cloudwatch_log_group.api_gateway.arn
+  value = var.api_gateway_name != null ? aws_cloudwatch_log_group.api_gateway[0].arn : null
 }
 
 output "sns_topic_arn" {

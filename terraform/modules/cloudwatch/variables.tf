@@ -1,11 +1,19 @@
 variable "lambda_function_name" {
-  description = "Name of the Lambda function to create a log group and alarms for (must match the name the lambda module will use)."
+  description = "Name of the Lambda function to create a log group and alarms for (must match the name the lambda module will use). Set to null to skip the Lambda log group/alarms entirely (e.g. a module call dedicated only to API Gateway monitoring)."
   type        = string
+  default     = null
 }
 
 variable "api_gateway_name" {
-  description = "Name of the API Gateway REST API to create a log group and alarms for (must match the name the api-gateway module will use)."
+  description = "Name of the API Gateway REST API to create a log group and alarms for (must match the name the api-gateway module will use). Set to null to skip the API Gateway log group/alarms entirely (e.g. a module call dedicated only to one Lambda function's monitoring)."
   type        = string
+  default     = null
+}
+
+variable "alarm_topic_name" {
+  description = "Name used for the SNS alarm topic (\"<name>-alarms\"). Defaults to lambda_function_name, then api_gateway_name, whichever is set."
+  type        = string
+  default     = null
 }
 
 variable "lambda_log_retention_days" {

@@ -14,6 +14,7 @@ override.tf.json
 .terraformrc
 terraform.rc
 terraform/modules/lambda/.build/
+terraform/modules/lambda-layer/.build/
 
 # Note: .terraform.lock.hcl is intentionally NOT ignored - commit it for
 # reproducible provider versions across machines/CI.

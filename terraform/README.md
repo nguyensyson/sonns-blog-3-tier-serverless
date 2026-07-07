@@ -3,9 +3,36 @@
 Infrastructure as Code for the blog's 3-tier architecture on AWS:
 
 - **Tier 1 - Presentation**: Route 53, ACM, CloudFront, S3 (frontend, private + OAC)
-- **Tier 2 - Application**: API Gateway, Lambda
-- **Tier 3 - Data**: DynamoDB, Secrets Manager, S3 (images, private)
-- **Monitoring**: CloudWatch log groups, metric alarms, SNS notifications
+- **Tier 2 - Application**: API Gateway (one REST API, path-routed) → 3 Python/FastAPI
+  Lambda functions (`user`, `posts`, `tasks`) sharing one Lambda Layer — see
+  `backend/README.md` for the application code
+- **Tier 3 - Data**: 4 DynamoDB tables (`Users`, `Posts`, `Groups`, `Tasks` — see
+  `backend/shared/dynamodb-schema.md`), Secrets Manager, S3 (images, private)
+- **Monitoring**: CloudWatch log groups, metric alarms, SNS notifications (one
+  per Lambda function, plus one for the shared API Gateway)
+
+## Backend Lambda architecture
+
+`environments/<env>/main.tf` wires up:
+
+- `module.dynamodb_users` / `dynamodb_posts` / `dynamodb_groups` / `dynamodb_tasks` —
+  4 calls to the generic `dynamodb` module, each with its own hash key and GSIs.
+- `module.lambda_layer_common` — the shared Lambda Layer (`lambda-layer` module),
+  built from `backend/layers/common` (needs `pip install -r requirements.txt -t python/`
+  run first — see `backend/README.md`).
+- `module.lambda_user` / `lambda_posts` / `lambda_tasks` — 3 calls to the generic
+  `lambda` module (Python 3.12, handler `main.handler`), each pointed at its own
+  `backend/modules/<name>` directory and attached to the shared layer, with only
+  the environment variables (table names, images bucket, JWT secret) that
+  function actually needs.
+- `module.iam` — one shared execution role granted access to all 4 tables (+
+  their GSI ARNs), the images bucket, and the JWT secret. Splitting this into
+  3 least-privilege roles (e.g. the `user` function never touches S3) is a
+  reasonable hardening follow-up, not done here to keep the module count down.
+- `module.api_gateway` — one REST API whose `routes` map sends `/auth/*` and
+  `/users/*` to the user function, `/posts/*` to the posts function, and
+  `/groups/*` + `/tasks/*` to the tasks function (each prefix gets both an
+  exact-match route and a `{proxy+}` catch-all — see the module's comments).
 
 ## Directory layout
 
@@ -92,7 +119,10 @@ Per environment, in `terraform.tfvars`:
 - `project_name`, `owner`, `cost_center` — identity/tagging
 - `aws_region` — where regional resources live
 - `root_domain_name`, `site_domain_name`, `create_route53_zone` — DNS/TLS
-- `lambda_source_dir` — path to the backend Lambda code to package
+- `lambda_user_source_dir` / `lambda_posts_source_dir` / `lambda_tasks_source_dir` —
+  paths to each backend module's code (`backend/modules/<name>`)
+- `lambda_layer_source_dir` (or `lambda_layer_zip_path` for a CI-built zip) —
+  the shared Lambda Layer source (`backend/layers/common`)
 - `alarm_email` — where CloudWatch alarm notifications go (optional but recommended for prod)
 
 See each environment's `terraform.tfvars.example` for the full list with

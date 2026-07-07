@@ -45,22 +45,47 @@ variable "create_route53_zone" {
 }
 
 # --- Lambda ---
+# Backend is 3 independent Python/FastAPI functions sharing one Lambda Layer
+# (see backend/README.md). Each *_source_dir points at the module's own
+# directory - only that directory's contents get zipped for that function.
 
-variable "lambda_source_dir" {
-  description = "Path to the backend Lambda source directory to zip and deploy."
+variable "lambda_user_source_dir" {
+  description = "Path to the User Lambda function source directory (backend/modules/user)."
   type        = string
+}
+
+variable "lambda_posts_source_dir" {
+  description = "Path to the Posts Lambda function source directory (backend/modules/posts)."
+  type        = string
+}
+
+variable "lambda_tasks_source_dir" {
+  description = "Path to the Tasks Lambda function source directory (backend/modules/tasks)."
+  type        = string
+}
+
+variable "lambda_layer_source_dir" {
+  description = "Path to the shared Lambda Layer directory (backend/layers/common) - must already contain a populated python/ folder (`pip install -r requirements.txt -t python/`). Ignored if lambda_layer_zip_path is set."
+  type        = string
+  default     = null
+}
+
+variable "lambda_layer_zip_path" {
+  description = "Path to a pre-built common-layer.zip (e.g. produced by CI/CD). Takes precedence over lambda_layer_source_dir."
+  type        = string
+  default     = null
 }
 
 variable "lambda_runtime" {
   description = "Lambda runtime identifier."
   type        = string
-  default     = "nodejs20.x"
+  default     = "python3.12"
 }
 
 variable "lambda_handler" {
-  description = "Lambda function handler."
+  description = "Lambda function handler, shared by all 3 modules (each module's main.py exposes `handler = Mangum(app)`)."
   type        = string
-  default     = "index.handler"
+  default     = "main.handler"
 }
 
 variable "lambda_memory_size" {
@@ -75,7 +100,16 @@ variable "lambda_timeout" {
   default     = 15
 }
 
+variable "cors_allow_origins" {
+  description = "Comma-separated list of allowed CORS origins passed to every function as CORS_ALLOW_ORIGINS (e.g. \"https://example.com\")."
+  type        = string
+  default     = "*"
+}
+
 # --- DynamoDB ---
+# Table hash/range keys and GSIs are fixed by the application code (see
+# backend/shared/dynamodb-schema.md), not user-configurable - only the
+# billing mode varies per environment.
 
 variable "dynamodb_billing_mode" {
   description = "PAY_PER_REQUEST or PROVISIONED."
@@ -83,18 +117,12 @@ variable "dynamodb_billing_mode" {
   default     = "PAY_PER_REQUEST"
 }
 
-variable "dynamodb_hash_key" {
-  description = "Partition key name for the main application table."
-  type        = string
-  default     = "id"
-}
-
 # --- Secrets Manager ---
 
 variable "secret_description" {
-  description = "Description for the application secret."
+  description = "Description for the application secret (holds the JWT signing secret read by all 3 Lambda functions)."
   type        = string
-  default     = "Application API keys/credentials for the Lambda backend."
+  default     = "JWT signing secret and other API keys/credentials for the Lambda backend."
 }
 
 # --- CloudWatch ---

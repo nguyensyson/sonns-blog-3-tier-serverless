@@ -15,8 +15,20 @@ output "route53_name_servers" {
   value       = module.route53_zone.name_servers
 }
 
-output "dynamodb_table_name" {
-  value = module.dynamodb.table_name
+output "users_table_name" {
+  value = module.dynamodb_users.table_name
+}
+
+output "posts_table_name" {
+  value = module.dynamodb_posts.table_name
+}
+
+output "groups_table_name" {
+  value = module.dynamodb_groups.table_name
+}
+
+output "tasks_table_name" {
+  value = module.dynamodb_tasks.table_name
 }
 
 output "images_bucket_name" {
@@ -31,6 +43,18 @@ output "secret_name" {
   value = module.secrets_manager.secret_name
 }
 
-output "lambda_function_name" {
-  value = module.lambda.function_name
+output "common_layer_arn" {
+  value = module.lambda_layer_common.layer_arn
+}
+
+output "user_function_name" {
+  value = module.lambda_user.function_name
+}
+
+output "posts_function_name" {
+  value = module.lambda_posts.function_name
+}
+
+output "tasks_function_name" {
+  value = module.lambda_tasks.function_name
 }

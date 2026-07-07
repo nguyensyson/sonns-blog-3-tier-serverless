@@ -11,24 +11,102 @@ locals {
     var.cost_center != "" ? { CostCenter = var.cost_center } : {}
   )
 
-  name_prefix          = "${var.project_name}-${var.environment}"
-  lambda_function_name = "${local.name_prefix}-app"
-  api_name             = "${local.name_prefix}-api"
-  dynamodb_table_name  = "${local.name_prefix}-table"
+  name_prefix = "${var.project_name}-${var.environment}"
+  api_name    = "${local.name_prefix}-api"
+
+  users_table_name  = "${local.name_prefix}-users"
+  posts_table_name  = "${local.name_prefix}-posts"
+  groups_table_name = "${local.name_prefix}-groups"
+  tasks_table_name  = "${local.name_prefix}-tasks"
+
+  common_layer_name   = "${local.name_prefix}-common-layer"
+  user_function_name  = "${local.name_prefix}-user"
+  posts_function_name = "${local.name_prefix}-posts"
+  tasks_function_name = "${local.name_prefix}-tasks"
+
   secret_name          = "${local.name_prefix}-app-secret"
   images_bucket_name   = "${local.name_prefix}-images-${data.aws_caller_identity.current.account_id}"
   frontend_bucket_name = "${local.name_prefix}-frontend-${data.aws_caller_identity.current.account_id}"
 }
 
 # --- Tier 3: Data ---
+# 4 tables, one per entity - see backend/shared/dynamodb-schema.md for the
+# full field list and the rationale behind each GSI.
 
-module "dynamodb" {
+module "dynamodb_users" {
   source = "../../modules/dynamodb"
 
-  table_name   = local.dynamodb_table_name
+  table_name   = local.users_table_name
   billing_mode = var.dynamodb_billing_mode
-  hash_key     = var.dynamodb_hash_key
-  tags         = local.common_tags
+  hash_key     = "userId"
+
+  global_secondary_indexes = [
+    { name = "email-index", hash_key = "email", projection_type = "ALL" },
+  ]
+  additional_attributes = { email = "S" }
+
+  tags = local.common_tags
+}
+
+module "dynamodb_posts" {
+  source = "../../modules/dynamodb"
+
+  table_name   = local.posts_table_name
+  billing_mode = var.dynamodb_billing_mode
+  hash_key     = "postId"
+
+  global_secondary_indexes = [
+    { name = "authorId-createdAt-index", hash_key = "authorId", range_key = "createdAt", projection_type = "ALL" },
+    { name = "category-createdAt-index", hash_key = "category", range_key = "createdAt", projection_type = "ALL" },
+  ]
+  additional_attributes = {
+    authorId  = "S"
+    category  = "S"
+    createdAt = "S"
+  }
+
+  tags = local.common_tags
+}
+
+module "dynamodb_groups" {
+  source = "../../modules/dynamodb"
+
+  table_name   = local.groups_table_name
+  billing_mode = var.dynamodb_billing_mode
+  hash_key     = "groupId"
+
+  global_secondary_indexes = [
+    { name = "userId-order-index", hash_key = "userId", range_key = "order", projection_type = "ALL" },
+  ]
+  additional_attributes = {
+    userId = "S"
+    order  = "N"
+  }
+
+  tags = local.common_tags
+}
+
+module "dynamodb_tasks" {
+  source = "../../modules/dynamodb"
+
+  table_name   = local.tasks_table_name
+  billing_mode = var.dynamodb_billing_mode
+  hash_key     = "taskId"
+
+  global_secondary_indexes = [
+    { name = "groupId-order-index", hash_key = "groupId", range_key = "order", projection_type = "ALL" },
+    # isDone is stored as Number (0/1), not native Boolean - DynamoDB key
+    # attributes only support S/N/B. See backend/shared/dynamodb-schema.md.
+    { name = "userId-isDone-index", hash_key = "userId", range_key = "isDone", projection_type = "ALL" },
+  ]
+  additional_attributes = {
+    groupId = "S"
+    order   = "N"
+    userId  = "S"
+    isDone  = "N"
+  }
+
+  tags = local.common_tags
 }
 
 module "secrets_manager" {
@@ -46,11 +124,24 @@ module "s3_images_bucket" {
   tags        = local.common_tags
 }
 
+# --- IAM ---
+# One shared execution role for all 3 functions, scoped to exactly the 4
+# tables (+ their GSIs), the images bucket, and the shared secret - no
+# wildcards. Splitting into 3 least-privilege roles (e.g. user doesn't need
+# S3 access at all) is a reasonable follow-up but adds module complexity
+# (the iam module's singleton API Gateway account settings would need to be
+# gated to only one of the three calls); not required for this to function.
+
 module "iam" {
   source = "../../modules/iam"
 
-  name_prefix                        = local.name_prefix
-  dynamodb_table_arns                = [module.dynamodb.table_arn]
+  name_prefix = local.name_prefix
+  dynamodb_table_arns = concat(
+    [module.dynamodb_users.table_arn], module.dynamodb_users.gsi_arns,
+    [module.dynamodb_posts.table_arn], module.dynamodb_posts.gsi_arns,
+    [module.dynamodb_groups.table_arn], module.dynamodb_groups.gsi_arns,
+    [module.dynamodb_tasks.table_arn], module.dynamodb_tasks.gsi_arns,
+  )
   s3_images_bucket_arn               = module.s3_images_bucket.bucket_arn
   secrets_manager_secret_arns        = [module.secrets_manager.secret_arn]
   manage_apigateway_account_settings = var.manage_apigateway_account_settings
@@ -58,13 +149,40 @@ module "iam" {
 }
 
 # --- Monitoring (log groups must exist before Lambda/API Gateway first write to them) ---
+# One cloudwatch module call per Lambda function, plus one more dedicated to
+# the (single, shared) API Gateway REST API.
 
-module "cloudwatch" {
+module "cloudwatch_user" {
   source = "../../modules/cloudwatch"
 
-  lambda_function_name           = local.lambda_function_name
+  lambda_function_name      = local.user_function_name
+  lambda_log_retention_days = var.log_retention_days
+  alarm_email               = var.alarm_email
+  tags                      = local.common_tags
+}
+
+module "cloudwatch_posts" {
+  source = "../../modules/cloudwatch"
+
+  lambda_function_name      = local.posts_function_name
+  lambda_log_retention_days = var.log_retention_days
+  alarm_email               = var.alarm_email
+  tags                      = local.common_tags
+}
+
+module "cloudwatch_tasks" {
+  source = "../../modules/cloudwatch"
+
+  lambda_function_name      = local.tasks_function_name
+  lambda_log_retention_days = var.log_retention_days
+  alarm_email               = var.alarm_email
+  tags                      = local.common_tags
+}
+
+module "cloudwatch_api" {
+  source = "../../modules/cloudwatch"
+
   api_gateway_name               = local.api_name
-  lambda_log_retention_days      = var.log_retention_days
   api_gateway_log_retention_days = var.log_retention_days
   alarm_email                    = var.alarm_email
   tags                           = local.common_tags
@@ -72,37 +190,123 @@ module "cloudwatch" {
 
 # --- Tier 2: Application/Logic ---
 
-module "lambda" {
+module "lambda_layer_common" {
+  source = "../../modules/lambda-layer"
+
+  layer_name          = local.common_layer_name
+  description         = "Shared FastAPI/DynamoDB/JWT/S3 helpers used by all 3 backend Lambda functions (backend/layers/common)."
+  compatible_runtimes = [var.lambda_runtime]
+  source_dir          = var.lambda_layer_source_dir
+  layer_zip_path      = var.lambda_layer_zip_path
+}
+
+module "lambda_user" {
   source = "../../modules/lambda"
 
-  function_name = local.lambda_function_name
+  function_name = local.user_function_name
   handler       = var.lambda_handler
   runtime       = var.lambda_runtime
   memory_size   = var.lambda_memory_size
   timeout       = var.lambda_timeout
   role_arn      = module.iam.lambda_role_arn
-  source_dir    = var.lambda_source_dir
+  source_dir    = var.lambda_user_source_dir
+  layers        = [module.lambda_layer_common.layer_arn]
 
   environment_variables = {
-    DYNAMODB_TABLE_NAME = module.dynamodb.table_name
-    IMAGES_BUCKET_NAME  = module.s3_images_bucket.bucket_id
-    SECRET_NAME         = module.secrets_manager.secret_name
-    SECRET_ARN          = module.secrets_manager.secret_arn
-    ENVIRONMENT         = var.environment
+    USERS_TABLE_NAME   = module.dynamodb_users.table_name
+    SECRET_NAME        = module.secrets_manager.secret_name
+    SECRET_ARN         = module.secrets_manager.secret_arn
+    ENVIRONMENT        = var.environment
+    CORS_ALLOW_ORIGINS = var.cors_allow_origins
   }
 
   tags       = local.common_tags
-  depends_on = [module.cloudwatch]
+  depends_on = [module.cloudwatch_user]
+}
+
+module "lambda_posts" {
+  source = "../../modules/lambda"
+
+  function_name = local.posts_function_name
+  handler       = var.lambda_handler
+  runtime       = var.lambda_runtime
+  memory_size   = var.lambda_memory_size
+  timeout       = var.lambda_timeout
+  role_arn      = module.iam.lambda_role_arn
+  source_dir    = var.lambda_posts_source_dir
+  layers        = [module.lambda_layer_common.layer_arn]
+
+  environment_variables = {
+    POSTS_TABLE_NAME   = module.dynamodb_posts.table_name
+    IMAGES_BUCKET_NAME = module.s3_images_bucket.bucket_id
+    SECRET_NAME        = module.secrets_manager.secret_name
+    SECRET_ARN         = module.secrets_manager.secret_arn
+    ENVIRONMENT        = var.environment
+    CORS_ALLOW_ORIGINS = var.cors_allow_origins
+  }
+
+  tags       = local.common_tags
+  depends_on = [module.cloudwatch_posts]
+}
+
+module "lambda_tasks" {
+  source = "../../modules/lambda"
+
+  function_name = local.tasks_function_name
+  handler       = var.lambda_handler
+  runtime       = var.lambda_runtime
+  memory_size   = var.lambda_memory_size
+  timeout       = var.lambda_timeout
+  role_arn      = module.iam.lambda_role_arn
+  source_dir    = var.lambda_tasks_source_dir
+  layers        = [module.lambda_layer_common.layer_arn]
+
+  environment_variables = {
+    GROUPS_TABLE_NAME  = module.dynamodb_groups.table_name
+    TASKS_TABLE_NAME   = module.dynamodb_tasks.table_name
+    SECRET_NAME        = module.secrets_manager.secret_name
+    SECRET_ARN         = module.secrets_manager.secret_arn
+    ENVIRONMENT        = var.environment
+    CORS_ALLOW_ORIGINS = var.cors_allow_origins
+  }
+
+  tags       = local.common_tags
+  depends_on = [module.cloudwatch_tasks]
 }
 
 module "api_gateway" {
   source = "../../modules/api-gateway"
 
-  api_name             = local.api_name
-  stage_name           = var.environment
-  lambda_function_name = module.lambda.function_name
-  lambda_invoke_arn    = module.lambda.invoke_arn
-  access_log_group_arn = module.cloudwatch.api_gateway_log_group_arn
+  api_name   = local.api_name
+  stage_name = var.environment
+
+  # auth/users -> user function; posts (blog+diary+upload-image) -> posts
+  # function; groups/tasks -> tasks function. See backend/README.md for the
+  # full endpoint list.
+  routes = {
+    auth = {
+      lambda_function_name = module.lambda_user.function_name
+      lambda_invoke_arn    = module.lambda_user.invoke_arn
+    }
+    users = {
+      lambda_function_name = module.lambda_user.function_name
+      lambda_invoke_arn    = module.lambda_user.invoke_arn
+    }
+    posts = {
+      lambda_function_name = module.lambda_posts.function_name
+      lambda_invoke_arn    = module.lambda_posts.invoke_arn
+    }
+    groups = {
+      lambda_function_name = module.lambda_tasks.function_name
+      lambda_invoke_arn    = module.lambda_tasks.invoke_arn
+    }
+    tasks = {
+      lambda_function_name = module.lambda_tasks.function_name
+      lambda_invoke_arn    = module.lambda_tasks.invoke_arn
+    }
+  }
+
+  access_log_group_arn = module.cloudwatch_api.api_gateway_log_group_arn
   tags                 = local.common_tags
 }
 

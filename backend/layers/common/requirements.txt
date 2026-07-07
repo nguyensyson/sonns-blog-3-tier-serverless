@@ -1,0 +1,13 @@
+# Installed into layers/common/python/ before zipping (see backend/README.md).
+# boto3/botocore are already present in the AWS Lambda Python runtime; they're
+# listed here only so local dev (uvicorn) has them too. They can be dropped
+# from the deployed layer zip to shrink it if desired.
+fastapi==0.115.6
+mangum==0.19.0
+pydantic==2.10.3
+email-validator==2.2.0
+PyJWT==2.10.1
+bcrypt==4.2.1
+python-multipart==0.0.20
+boto3==1.35.74
+botocore==1.35.74

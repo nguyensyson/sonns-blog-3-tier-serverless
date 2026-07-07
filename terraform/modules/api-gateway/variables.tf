@@ -8,14 +8,20 @@ variable "stage_name" {
   type        = string
 }
 
-variable "lambda_function_name" {
-  description = "Name of the Lambda function to invoke (used for the invoke permission)."
-  type        = string
-}
-
-variable "lambda_invoke_arn" {
-  description = "Invoke ARN of the Lambda function (from the lambda module)."
-  type        = string
+variable "routes" {
+  description = <<-EOT
+    Map of top-level path prefix (no leading/trailing slash, e.g. "auth",
+    "posts") to the backend Lambda function that should handle every request
+    under that prefix. Each prefix gets its own "/{prefix}" exact-match route
+    (e.g. bare "GET /groups") plus a "/{prefix}/{proxy+}" catch-all route
+    (e.g. "POST /auth/register", "PUT /groups/reorder"), both routed to the
+    same function. Multiple prefixes may point at the same function (e.g.
+    "auth" and "users" both routed to the user function).
+  EOT
+  type = map(object({
+    lambda_function_name = string
+    lambda_invoke_arn    = string
+  }))
 }
 
 variable "access_log_group_arn" {

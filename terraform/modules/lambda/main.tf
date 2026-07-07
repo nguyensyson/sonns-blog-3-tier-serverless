@@ -20,6 +20,7 @@ resource "aws_lambda_function" "this" {
   timeout       = var.timeout
 
   reserved_concurrent_executions = var.reserved_concurrent_executions
+  layers                         = var.layers
 
   filename         = local.use_prebuilt_package ? var.deployment_package_path : data.archive_file.source[0].output_path
   source_code_hash = local.use_prebuilt_package ? filebase64sha256(var.deployment_package_path) : data.archive_file.source[0].output_base64sha256

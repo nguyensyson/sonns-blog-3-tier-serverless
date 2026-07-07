@@ -1,17 +1,28 @@
+locals {
+  # A single module call can monitor a Lambda function, an API Gateway REST
+  # API, or both - each half of this module is independently gated by count
+  # so environments/*.tf can call it once per Lambda function plus once more
+  # for the (single, shared) API Gateway REST API, without any resource
+  # (log group name, alarm name) colliding across calls.
+  topic_name = coalesce(var.alarm_topic_name, var.lambda_function_name, var.api_gateway_name)
+}
+
 resource "aws_cloudwatch_log_group" "lambda" {
+  count             = var.lambda_function_name != null ? 1 : 0
   name              = "/aws/lambda/${var.lambda_function_name}"
   retention_in_days = var.lambda_log_retention_days
   tags              = var.tags
 }
 
 resource "aws_cloudwatch_log_group" "api_gateway" {
+  count             = var.api_gateway_name != null ? 1 : 0
   name              = "/aws/apigateway/${var.api_gateway_name}"
   retention_in_days = var.api_gateway_log_retention_days
   tags              = var.tags
 }
 
 resource "aws_sns_topic" "alarms" {
-  name = "${var.lambda_function_name}-alarms"
+  name = "${local.topic_name}-alarms"
   tags = var.tags
 }
 
@@ -23,6 +34,7 @@ resource "aws_sns_topic_subscription" "alarm_email" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  count               = var.lambda_function_name != null ? 1 : 0
   alarm_name          = "${var.lambda_function_name}-errors"
   alarm_description   = "Lambda function ${var.lambda_function_name} is returning errors."
   namespace           = "AWS/Lambda"
@@ -44,6 +56,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
+  count               = var.lambda_function_name != null ? 1 : 0
   alarm_name          = "${var.lambda_function_name}-throttles"
   alarm_description   = "Lambda function ${var.lambda_function_name} is being throttled."
   namespace           = "AWS/Lambda"
@@ -65,6 +78,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_throttles" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "api_gateway_5xx" {
+  count               = var.api_gateway_name != null ? 1 : 0
   alarm_name          = "${var.api_gateway_name}-5xx"
   alarm_description   = "API Gateway ${var.api_gateway_name} is returning 5XX errors."
   namespace           = "AWS/ApiGateway"
@@ -86,6 +100,7 @@ resource "aws_cloudwatch_metric_alarm" "api_gateway_5xx" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "api_gateway_4xx" {
+  count               = var.api_gateway_name != null ? 1 : 0
   alarm_name          = "${var.api_gateway_name}-4xx"
   alarm_description   = "API Gateway ${var.api_gateway_name} is returning an elevated rate of 4XX errors."
   namespace           = "AWS/ApiGateway"

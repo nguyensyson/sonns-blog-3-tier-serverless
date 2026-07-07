@@ -1,0 +1,7 @@
+# Local development / test dependencies only. Production deps for the
+# deployed Lambda Layer live in layers/common/requirements.txt.
+-r layers/common/requirements.txt
+uvicorn==0.32.1
+pytest==8.3.4
+httpx==0.28.1
+moto[dynamodb,s3,secretsmanager]==5.0.21
