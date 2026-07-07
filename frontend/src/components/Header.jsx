@@ -26,6 +26,11 @@ export default function Header() {
             Nhật ký
           </button>
         )}
+        {isLoggedIn && (
+          <button className="header-nav-link" onClick={() => navigate('/tasks')}>
+            Việc cần làm
+          </button>
+        )}
         {isLoggedIn ? (
           <button
             className="btn-outline"
