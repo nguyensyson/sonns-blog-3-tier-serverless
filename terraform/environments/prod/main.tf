@@ -308,6 +308,11 @@ module "api_gateway" {
 
   access_log_group_arn = module.cloudwatch_api.api_gateway_log_group_arn
   tags                 = local.common_tags
+
+  # Stage creation enables access logging, which requires the account-level
+  # CloudWatch role (module.iam.aws_api_gateway_account) to exist first -
+  # there's no implicit reference between the two modules otherwise.
+  depends_on = [module.iam]
 }
 
 # --- Tier 1: Presentation ---

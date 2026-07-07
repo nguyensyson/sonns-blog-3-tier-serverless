@@ -7,7 +7,7 @@ cost_center  = ""
 # DNS / TLS
 root_domain_name    = "example.com"
 site_domain_name    = "dev.example.com"
-create_route53_zone = true # dev owns the zone by default; set false here (and true in prod) to flip ownership
+create_route53_zone = false # dev owns the zone by default; set false here (and true in prod) to flip ownership
 
 # Lambda - 3 independent Python/FastAPI functions + 1 shared layer (see backend/README.md)
 lambda_user_source_dir  = "../../../backend/modules/user"

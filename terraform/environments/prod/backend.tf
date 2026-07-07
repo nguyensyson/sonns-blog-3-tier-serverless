@@ -4,10 +4,10 @@
 # never collide inside the same bucket.
 terraform {
   backend "s3" {
-    bucket         = "REPLACE_WITH_BOOTSTRAP_state_bucket_name"
+    bucket         = "sonns-blogs-terraform-state-650251726830"
     key            = "prod/terraform.tfstate"
-    region         = "REPLACE_WITH_BOOTSTRAP_aws_region"
-    dynamodb_table = "REPLACE_WITH_BOOTSTRAP_lock_table_name"
+    region         = "ap-southeast-1"
+    dynamodb_table = "sonns-blogs-terraform-locks"
     encrypt        = true
   }
 }
