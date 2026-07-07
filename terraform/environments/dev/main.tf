@@ -339,6 +339,7 @@ module "s3_static_website" {
 module "cloudfront" {
   source = "../../modules/cloudfront"
 
+  name_prefix                    = local.name_prefix
   aliases                        = [var.site_domain_name]
   certificate_arn                = module.acm.certificate_arn
   s3_bucket_regional_domain_name = module.s3_static_website.bucket_regional_domain_name

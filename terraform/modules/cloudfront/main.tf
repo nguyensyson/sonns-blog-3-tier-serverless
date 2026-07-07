@@ -12,6 +12,19 @@ resource "aws_cloudfront_origin_access_control" "s3" {
   signing_protocol                  = "sigv4"
 }
 
+# Strips the "/api" prefix the frontend calls (e.g. "/api/users") down to the
+# API Gateway's actual resource path (e.g. "/users") before the request is
+# forwarded to the API origin. Keeps the frontend's public contract
+# ("always call same-origin /api/*") decoupled from however the backend
+# happens to route internally.
+resource "aws_cloudfront_function" "strip_api_prefix" {
+  name    = "${var.name_prefix}-strip-api-prefix"
+  runtime = "cloudfront-js-2.0"
+  comment = "Strips the leading /api segment before forwarding to the API Gateway origin."
+  publish = true
+  code    = file("${path.module}/strip_api_prefix.js")
+}
+
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -58,6 +71,11 @@ resource "aws_cloudfront_distribution" "this" {
     compress                 = true
     cache_policy_id          = local.caching_disabled_policy_id
     origin_request_policy_id = local.all_viewer_except_host_policy_id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.strip_api_prefix.arn
+    }
   }
 
   # SPA routing (BrowserRouter): unknown paths 403/404 from S3 fall back to

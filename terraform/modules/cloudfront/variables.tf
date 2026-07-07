@@ -13,6 +13,11 @@ variable "s3_bucket_regional_domain_name" {
   type        = string
 }
 
+variable "name_prefix" {
+  description = "Prefix used to namespace account-global resources this module creates (e.g. CloudFront Functions), so multiple environments in the same account don't collide, e.g. \"myapp-dev\"."
+  type        = string
+}
+
 variable "s3_origin_id" {
   description = "Identifier for the S3 origin."
   type        = string
