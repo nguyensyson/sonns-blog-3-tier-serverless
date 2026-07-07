@@ -1,0 +1,31 @@
+aws_region   = "ap-southeast-1"
+project_name = "sonns-blog"
+environment  = "prod"
+owner        = "sonns"
+cost_center  = ""
+
+# DNS / TLS
+root_domain_name    = "example.com"
+site_domain_name    = "example.com" # or "www.example.com"
+create_route53_zone = false # dev owns the zone by default (see environments/dev); flip if prod should own it instead
+
+# Lambda
+lambda_source_dir  = "../../../backend"
+lambda_runtime     = "nodejs20.x"
+lambda_handler     = "index.handler"
+lambda_memory_size = 256
+lambda_timeout     = 15
+
+# DynamoDB
+dynamodb_billing_mode = "PAY_PER_REQUEST"
+dynamodb_hash_key     = "id"
+
+# Secrets Manager
+secret_description = "Application API keys/credentials for the Lambda backend (prod)."
+
+# CloudWatch
+log_retention_days = 90
+alarm_email        = "you@example.com"
+
+# Only one environment sharing this AWS account/region should manage this.
+manage_apigateway_account_settings = false

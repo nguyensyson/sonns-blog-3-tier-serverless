@@ -1,0 +1,8 @@
+aws_region        = "ap-southeast-1"
+project_name      = "sonns-blog"
+state_bucket_name = "sonns-blog-terraform-state-<unique-suffix>"
+lock_table_name   = "sonns-blog-terraform-locks"
+
+tags = {
+  Owner = "sonns"
+}
