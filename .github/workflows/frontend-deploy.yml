@@ -35,8 +35,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       # Bucket name / distribution ID come from repo secrets (S3_BUCKET_NAME,
       # CLOUDFRONT_DISTRIBUTION_ID) instead of being read from Terraform

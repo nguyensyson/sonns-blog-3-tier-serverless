@@ -31,7 +31,7 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
 
 jobs:
   test:
@@ -73,7 +73,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: aws-actions/setup-sam@v2
@@ -118,4 +118,4 @@ jobs:
       # Terraform isn't applied here - a dev applies it manually and will pick
       # up this value on their next `terraform apply`.
       - name: Publish API Gateway domain to SSM
-        run: ./sam/scripts/publish-api-domain.sh "${{ vars.PROJECT_NAME }}" prod sonns-blogs-prod-backend "${{ env.AWS_REGION }}"
+        run: ./sam/scripts/publish-api-domain.sh "${{ secrets.PROJECT_NAME }}" prod sonns-blogs-prod-backend "${{ env.AWS_REGION }}"
