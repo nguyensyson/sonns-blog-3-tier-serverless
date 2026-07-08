@@ -17,7 +17,12 @@ info:
 # DefinitionBody + Fn::Transform: AWS::Include, which inlines it into the
 # template body before intrinsic functions are evaluated - see ../README.md.
 # (A plain DefinitionUri does NOT do this: CloudFormation hands that content
-# to API Gateway as an opaque S3-hosted body, so !Sub is never resolved.)
+# to API Gateway as an opaque S3-hosted body, so Fn::Sub is never resolved.)
+#
+# Must use the long form `Fn::Sub: "..."`, not the YAML short tag `!Sub "..."`
+# - AWS::Include fetches this file from S3 and parses it with a plain
+# YAML/JSON parser that doesn't understand CloudFormation's short-form
+# intrinsic tags, so `!Sub` fails with "content should be valid Yaml/JSON".
 
 paths:
   /auth:
@@ -26,7 +31,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
   /auth/{proxy}:
     parameters:
       - name: proxy
@@ -39,7 +45,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
 
   /users:
     x-amazon-apigateway-any-method:
@@ -47,7 +54,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
   /users/{proxy}:
     parameters:
       - name: proxy
@@ -60,7 +68,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
 
   /posts:
     x-amazon-apigateway-any-method:
@@ -68,7 +77,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PostsFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PostsFunction.Arn}/invocations"
   /posts/{proxy}:
     parameters:
       - name: proxy
@@ -81,7 +91,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PostsFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PostsFunction.Arn}/invocations"
 
   /groups:
     x-amazon-apigateway-any-method:
@@ -89,7 +100,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
   /groups/{proxy}:
     parameters:
       - name: proxy
@@ -102,7 +114,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
 
   /tasks:
     x-amazon-apigateway-any-method:
@@ -110,7 +123,8 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
   /tasks/{proxy}:
     parameters:
       - name: proxy
@@ -123,4 +137,5 @@ paths:
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
