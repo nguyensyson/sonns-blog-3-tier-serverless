@@ -201,7 +201,11 @@ resource "aws_ssm_parameter" "app_secret_arn" {
 resource "aws_ssm_parameter" "api_gateway_domain_name" {
   name  = "/${local.name_prefix}/apigateway/domain-name"
   type  = "String"
-  value = "PLACEHOLDER-UNTIL-FIRST-SAM-DEPLOY"
+  # Must be syntactically a valid domain name (dots, hostname chars) - it's
+  # used as a CloudFront origin's domain_name at creation time on a brand-new
+  # environment, and CloudFront rejects non-domain-shaped values outright.
+  # ".invalid" is the RFC 2606 TLD reserved for obviously-fake hostnames.
+  value = "placeholder-until-first-sam-deploy.invalid"
   tags  = local.common_tags
 
   lifecycle {

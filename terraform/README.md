@@ -144,11 +144,15 @@ assume instead of using static AWS access keys. To wire it up:
 2. After `terraform apply`, copy the `github_actions_role_arn` output into
    the repo's **Settings → Secrets and variables → Actions → Variables** as
    `AWS_GITHUB_ACTIONS_ROLE_ARN`.
-3. Also add these (non-secret) repo variables — they mirror
-   `environments/prod/terraform.tfvars.example`, since that file is
-   gitignored and CI has to regenerate it: `AWS_REGION`, `PROJECT_NAME`,
-   `OWNER`, `COST_CENTER`, `ROOT_DOMAIN_NAME`, `SITE_DOMAIN_NAME`,
-   `CORS_ALLOW_ORIGINS`, `ALARM_EMAIL`.
+3. Also add `AWS_REGION` and `PROJECT_NAME` as (non-secret) repo variables —
+   both workflows need them (`PROJECT_NAME` only to name/locate the SAM
+   stack and its SSM parameters).
+
+`terraform apply` itself is **not** run by CI (see "Serverless migration"
+above) — only a dev runs it, from `terraform.tfvars` on their machine (step 3
+below). So the rest of `terraform.tfvars.example`'s values (`OWNER`,
+`COST_CENTER`, `ROOT_DOMAIN_NAME`, `SITE_DOMAIN_NAME`, etc.) don't need to be
+repo variables at all.
 
 By default the role only trusts `workflow_dispatch`/push-triggered runs on
 `main` (see `github-oidc`'s `allowed_subjects`), and its IAM permissions are

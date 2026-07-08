@@ -60,21 +60,26 @@ fights over ownership with SAM. After every `sam deploy`,
 overwrites that parameter with a plain `aws ssm put-parameter` call —
 deliberately outside both Terraform's and CloudFormation's state.
 
-This makes the deploy order **Terraform → SAM → Terraform**:
+This makes the full deploy order **Terraform → SAM → Terraform**, but only
+step 2 runs in CI:
 
-1. `terraform apply` — creates/updates DynamoDB, S3, Secrets Manager, and
-   the forward SSM parameters. CloudFront's origin still points at whatever
-   it was last set to (or the bootstrap placeholder, on a brand-new
-   environment — expect CloudFront to be broken until step 3 on first setup).
+1. `terraform apply` (manual, by a dev — see `../terraform/README.md`) —
+   creates/updates DynamoDB, S3, Secrets Manager, and the forward SSM
+   parameters. CloudFront's origin still points at whatever it was last set
+   to (or the bootstrap placeholder, on a brand-new environment — expect
+   CloudFront to be broken until step 3 on first setup).
 2. `sam build && sam deploy` — reads the forward SSM parameters, creates/
    updates the 3 functions + API, then `publish-api-domain.sh` writes the
-   real API domain back to SSM.
-3. `terraform apply` again — picks up the real API domain and updates
-   CloudFront's origin. A no-op most of the time, since the API's domain
-   name doesn't change between ordinary deploys (only if the `Api` resource
-   were ever replaced).
-
-`.github/workflows/backend-deploy.yml` runs exactly this sequence for prod.
+   real API domain back to SSM. **This is the only step
+   `.github/workflows/backend-deploy.yml` runs** — it fires on every push
+   that touches `backend/**` or `sam/**`, redeploying Lambda code without
+   touching Terraform-managed infra.
+3. `terraform apply` again (manual) — picks up the real API domain and
+   updates CloudFront's origin. A no-op most of the time, since the API's
+   domain name doesn't change between ordinary deploys (only if the `Api`
+   resource were ever replaced) — a dev only needs to re-run this when infra
+   actually changed, or once after the very first `sam deploy` to an
+   environment.
 
 The stage name is always `dev` or `prod` and is passed straight through as
 both the SAM `Stage` parameter and the API Gateway stage name, so

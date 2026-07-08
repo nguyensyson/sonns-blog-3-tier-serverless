@@ -1,24 +1,28 @@
 name: Backend deploy (prod)
 
 # Split ownership since the SAM migration (see sam/README.md):
-#   - Terraform still owns DynamoDB, S3 (images), Secrets Manager, CloudFront,
-#     ACM, Route53, and the account-level API Gateway CloudWatch role.
-#   - SAM now owns the 3 Lambda functions, the shared layer, and the REST API
+#   - Terraform owns DynamoDB, S3 (images), Secrets Manager, CloudFront, ACM,
+#     Route53, and the account-level API Gateway CloudWatch role. It is
+#     applied manually by a dev (see terraform/README.md) - NOT by this
+#     workflow - so infra changes are deliberate and reviewed before they hit
+#     prod.
+#   - SAM owns the 3 Lambda functions, the shared layer, and the REST API
 #     (previously terraform/modules/lambda, lambda-layer, api-gateway,
-#     cloudwatch - all deleted).
+#     cloudwatch - all deleted). This workflow only redeploys those.
 #
-# Deploy order matters: Terraform must run BEFORE `sam deploy` (SAM reads
-# table/bucket/secret names via {{resolve:ssm:...}} from SSM parameters
-# Terraform writes) AND AFTER it (CloudFront's API origin is only known once
-# SAM has created the REST API - see terraform/README.md "SSM bridge").
+# SAM reads table/bucket/secret names via {{resolve:ssm:...}} directly from
+# SSM parameters that Terraform already wrote on a prior manual apply - it
+# does not need Terraform to run in this pipeline. The one exception is
+# CloudFront's API origin, which is only known once SAM has created the REST
+# API; publish-api-domain.sh (below) keeps that SSM parameter fresh so the
+# next manual `terraform apply` picks it up (see terraform/README.md "SSM
+# bridge").
 on:
   push:
     branches: [main]
     paths:
       - "backend/**"
       - "sam/**"
-      - "terraform/modules/**"
-      - "terraform/environments/prod/**"
       - ".github/workflows/backend-deploy.yml"
   workflow_dispatch: {}
 
@@ -72,50 +76,9 @@ jobs:
           role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.9.8"
-
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
-
-      # terraform.tfvars is gitignored by design (see terraform/README.md) -
-      # regenerated here from repo Variables (none of these values are
-      # secret; the JWT secret itself lives in Secrets Manager, set out of
-      # band, never in tfvars).
-      - name: Write terraform.tfvars
-        working-directory: terraform/environments/prod
-        run: |
-          cat > terraform.tfvars <<EOF
-          aws_region   = "${{ vars.AWS_REGION }}"
-          project_name = "${{ vars.PROJECT_NAME }}"
-          environment  = "prod"
-          owner        = "${{ vars.OWNER }}"
-          cost_center  = "${{ vars.COST_CENTER }}"
-
-          root_domain_name    = "${{ vars.ROOT_DOMAIN_NAME }}"
-          site_domain_name    = "${{ vars.SITE_DOMAIN_NAME }}"
-          create_route53_zone = false
-
-          dynamodb_billing_mode = "PAY_PER_REQUEST"
-
-          secret_description = "JWT signing secret and other API keys/credentials for the Lambda backend (prod)."
-
-          manage_apigateway_account_settings = true
-          EOF
-
-      - name: Terraform init
-        working-directory: terraform/environments/prod
-        run: terraform init
-
-      # Pass 1: create/update DynamoDB, S3, Secrets Manager, IAM account
-      # settings, and the SSM parameters SAM is about to read. CloudFront's
-      # API origin will still point at last known value (or the bootstrap
-      # placeholder on a brand-new environment) until pass 2, below.
-      - name: Terraform apply (base infra + SSM bridge)
-        working-directory: terraform/environments/prod
-        run: terraform apply -auto-approve
 
       - name: Cache SAM build
         uses: actions/cache@v4
@@ -152,12 +115,7 @@ jobs:
       # regional domain name to the SSM parameter Terraform's CloudFront
       # module reads (see sam/scripts/publish-api-domain.sh and
       # terraform/environments/prod/main.tf "SSM bridge (SAM -> Terraform)").
+      # Terraform isn't applied here - a dev applies it manually and will pick
+      # up this value on their next `terraform apply`.
       - name: Publish API Gateway domain to SSM
         run: ./sam/scripts/publish-api-domain.sh "${{ vars.PROJECT_NAME }}" prod sonns-blogs-prod-backend "${{ env.AWS_REGION }}"
-
-      # Pass 2: now that the SSM parameter above holds the real API domain,
-      # update CloudFront's origin to point at it. No-op if the domain didn't
-      # change since the last deploy (the common case).
-      - name: Terraform apply (finalize CloudFront origin)
-        working-directory: terraform/environments/prod
-        run: terraform apply -auto-approve

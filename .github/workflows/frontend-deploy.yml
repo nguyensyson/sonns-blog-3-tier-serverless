@@ -38,26 +38,12 @@ jobs:
           role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.9.8"
-
-      # Read the bucket name / distribution ID straight from the already
-      # -applied prod state instead of hardcoding them (both include the AWS
-      # account ID, so they're not guessable/stable across accounts).
-      - name: Terraform init
-        working-directory: terraform/environments/prod
-        run: terraform init
-
-      - name: Resolve S3 bucket + CloudFront distribution
-        id: tf
-        working-directory: terraform/environments/prod
-        run: |
-          echo "bucket=$(terraform output -raw frontend_bucket_name)" >> "$GITHUB_OUTPUT"
-          echo "distribution_id=$(terraform output -raw cloudfront_distribution_id)" >> "$GITHUB_OUTPUT"
-
+      # Bucket name / distribution ID come from repo secrets (S3_BUCKET_NAME,
+      # CLOUDFRONT_DISTRIBUTION_ID) instead of being read from Terraform
+      # state - copy them from `terraform output` after each manual
+      # `terraform apply` if they ever change (see terraform/README.md).
       - name: Sync to S3
-        run: aws s3 sync frontend/dist "s3://${{ steps.tf.outputs.bucket }}" --delete
+        run: aws s3 sync frontend/dist "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
 
       - name: Invalidate CloudFront cache
-        run: aws cloudfront create-invalidation --distribution-id "${{ steps.tf.outputs.distribution_id }}" --paths "/*"
+        run: aws cloudfront create-invalidation --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"

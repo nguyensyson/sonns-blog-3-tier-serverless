@@ -16,5 +16,8 @@ terraform.rc
 terraform/modules/lambda/.build/
 terraform/modules/lambda-layer/.build/
 
+# SAM
+**/.aws-sam/
+
 # Note: .terraform.lock.hcl is intentionally NOT ignored - commit it for
 # reproducible provider versions across machines/CI.
