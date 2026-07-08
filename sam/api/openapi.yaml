@@ -13,8 +13,11 @@ info:
 # by API Gateway.
 #
 # Function ARNs below (${UserFunction.Arn} etc.) are resolved by
-# CloudFormation because AWS SAM inlines this file into template.yaml's
-# DefinitionBody at build/package time - see ../README.md.
+# CloudFormation because template.yaml's Api resource pulls this file in via
+# DefinitionBody + Fn::Transform: AWS::Include, which inlines it into the
+# template body before intrinsic functions are evaluated - see ../README.md.
+# (A plain DefinitionUri does NOT do this: CloudFormation hands that content
+# to API Gateway as an opaque S3-hosted body, so !Sub is never resolved.)
 
 paths:
   /auth:

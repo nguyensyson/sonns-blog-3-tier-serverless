@@ -27,7 +27,7 @@ sam/
 │   ├── dev.toml          # sam deploy --config-file env/dev.toml  --config-env dev
 │   └── prod.toml         # sam deploy --config-file env/prod.toml --config-env prod
 ├── api/
-│   └── openapi.yaml      # REST API route definitions (imported via DefinitionUri)
+│   └── openapi.yaml      # REST API route definitions (inlined via DefinitionBody + Fn::Transform: AWS::Include)
 ├── functions/            # pointers to backend/modules/<domain> (no code duplication)
 ├── layers/               # pointer to backend/layers/common
 ├── events/

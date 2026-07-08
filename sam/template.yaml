@@ -102,7 +102,11 @@ Resources:
     Properties:
       Name: !Sub "${ProjectName}-${Stage}-api"
       StageName: !Ref Stage
-      DefinitionUri: api/openapi.yaml
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: api/openapi.yaml
       EndpointConfiguration: REGIONAL
       AccessLogSetting:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn

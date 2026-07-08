@@ -92,4 +92,11 @@ module "github_actions_oidc" {
   project_name      = var.project_name
   github_repository = var.github_repository
   tags              = var.tags
+
+  # Both deploy workflows run their job under `environment: prod`, which
+  # changes GitHub's OIDC sub claim to "repo:<repo>:environment:prod" instead
+  # of the ref-based subject - match that, not a branch ref.
+  allowed_subjects = [
+    "repo:${var.github_repository}:environment:prod",
+  ]
 }
