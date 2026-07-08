@@ -1,0 +1,19 @@
+# Shared defaults for local/dev commands that don't take --config-file
+# (e.g. plain `sam build`, `sam local start-api`). Per-environment deploy
+# configuration (stack name, parameter_overrides, S3 bucket) lives in
+# env/dev.toml and env/prod.toml instead - see README.md.
+#
+# Usage:
+#   sam build
+#   sam deploy --config-file env/dev.toml  --config-env dev
+#   sam deploy --config-file env/prod.toml --config-env prod
+
+version = 0.1
+
+[default.build.parameters]
+cached = true
+parallel = true
+use_container = true
+
+[default.validate.parameters]
+lint = true

@@ -1,0 +1,362 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Compute tier (Lambda + API Gateway) for sonns-blogs, migrated out of
+  Terraform into AWS SAM. DynamoDB, S3, Secrets Manager, CloudFront, Route53
+  and ACM stay in Terraform - see ../terraform/README.md and README.md
+  "Ownership boundary" for the split.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: Must match Terraform's var.project_name - used as the resource name prefix.
+
+  Stage:
+    Type: String
+    AllowedValues: [dev, prod]
+    Description: Deployment stage. Also used as the API Gateway stage name (CloudFront's origin_path assumes stage == Terraform's var.environment).
+
+  # --- Cross-stack inputs owned by Terraform, injected via {{resolve:ssm:...}}
+  # in env/<stage>.toml - see README.md "Cross-stack references". ---
+  UsersTableName:
+    Type: String
+  PostsTableName:
+    Type: String
+  GroupsTableName:
+    Type: String
+  TasksTableName:
+    Type: String
+  ImagesBucketName:
+    Type: String
+  SecretName:
+    Type: String
+  SecretArn:
+    Type: String
+
+  # --- Per-environment application config (see env/<stage>.toml) ---
+  CorsAllowOrigins:
+    Type: String
+    Default: "*"
+  LambdaMemorySize:
+    Type: Number
+    Default: 128
+  LambdaTimeout:
+    Type: Number
+    Default: 10
+  LogRetentionInDays:
+    Type: Number
+    Default: 30
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: Optional email subscribed to the shared CloudWatch alarm SNS topic.
+  ApiThrottlingRateLimit:
+    Type: Number
+    Default: 100
+  ApiThrottlingBurstLimit:
+    Type: Number
+    Default: 200
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    MemorySize: !Ref LambdaMemorySize
+    Timeout: !Ref LambdaTimeout
+    Tracing: Active
+    Layers:
+      - !Ref CommonLayer
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Stage
+        SECRET_NAME: !Ref SecretName
+        SECRET_ARN: !Ref SecretArn
+        CORS_ALLOW_ORIGINS: !Ref CorsAllowOrigins
+    Tags:
+      Project: !Ref ProjectName
+      Environment: !Ref Stage
+      ManagedBy: sam
+
+Resources:
+  # --- Shared Lambda Layer ---
+  # ContentUri points straight at backend/layers/common (no duplication) -
+  # `sam build` installs requirements.txt into python/ alongside the
+  # hand-written shared modules already there, same as the old Terraform
+  # module's manual `pip install -t python/` step.
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: python3.12
+    Properties:
+      LayerName: !Sub "${ProjectName}-${Stage}-common-layer"
+      Description: Shared FastAPI/DynamoDB/JWT/S3 helpers used by all 3 backend Lambda functions (backend/layers/common).
+      ContentUri: ../backend/layers/common
+      CompatibleRuntimes: [python3.12]
+      RetentionPolicy: Delete
+
+  # --- API Gateway (REST API, routes defined in api/openapi.yaml) ---
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${ProjectName}-${Stage}-api"
+      StageName: !Ref Stage
+      DefinitionUri: api/openapi.yaml
+      EndpointConfiguration: REGIONAL
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","integrationError":"$context.integration.error"}
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          DataTraceEnabled: false
+          MetricsEnabled: true
+          ThrottlingRateLimit: !Ref ApiThrottlingRateLimit
+          ThrottlingBurstLimit: !Ref ApiThrottlingBurstLimit
+
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${ProjectName}-${Stage}-api"
+      RetentionInDays: !Ref LogRetentionInDays
+
+  # --- user function: auth + users ---
+  UserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Stage}-user"
+      RetentionInDays: !Ref LogRetentionInDays
+
+  UserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Stage}-user"
+      Description: Auth + user profile endpoints (backend/modules/user).
+      CodeUri: ../backend/modules/user
+      Handler: main.handler
+      LoggingConfig:
+        LogGroup: !Ref UserFunctionLogGroup
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTableName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTableName
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref SecretArn
+
+  UserFunctionApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref UserFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${Api.ExecutionArn}/*/*"
+
+  # --- posts function: blog + diary + image upload ---
+  PostsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Stage}-posts"
+      RetentionInDays: !Ref LogRetentionInDays
+
+  PostsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Stage}-posts"
+      Description: Blog + diary + image upload endpoints (backend/modules/posts).
+      CodeUri: ../backend/modules/posts
+      Handler: main.handler
+      LoggingConfig:
+        LogGroup: !Ref PostsFunctionLogGroup
+      Environment:
+        Variables:
+          POSTS_TABLE_NAME: !Ref PostsTableName
+          IMAGES_BUCKET_NAME: !Ref ImagesBucketName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PostsTableName
+        - S3CrudPolicy:
+            BucketName: !Ref ImagesBucketName
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref SecretArn
+
+  PostsFunctionApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref PostsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${Api.ExecutionArn}/*/*"
+
+  # --- tasks function: groups + tasks ---
+  TasksFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${Stage}-tasks"
+      RetentionInDays: !Ref LogRetentionInDays
+
+  TasksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Stage}-tasks"
+      Description: Task groups + tasks endpoints (backend/modules/tasks).
+      CodeUri: ../backend/modules/tasks
+      Handler: main.handler
+      LoggingConfig:
+        LogGroup: !Ref TasksFunctionLogGroup
+      Environment:
+        Variables:
+          GROUPS_TABLE_NAME: !Ref GroupsTableName
+          TASKS_TABLE_NAME: !Ref TasksTableName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GroupsTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TasksTableName
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref SecretArn
+
+  TasksFunctionApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref TasksFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${Api.ExecutionArn}/*/*"
+
+  # --- Monitoring ---
+  # One shared alarm topic instead of the old Terraform setup's 4 duplicate
+  # per-resource topics (3 Lambda + 1 API Gateway) all emailing the same
+  # address - simpler, same coverage.
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ProjectName}-${Stage}-alarms"
+
+  AlarmTopicEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
+  UserFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Stage}-user-errors"
+      AlarmDescription: !Sub "Lambda function ${ProjectName}-${Stage}-user is returning errors."
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Statistic: Sum
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 300
+      EvaluationPeriods: 1
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref UserFunction
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  PostsFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Stage}-posts-errors"
+      AlarmDescription: !Sub "Lambda function ${ProjectName}-${Stage}-posts is returning errors."
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Statistic: Sum
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 300
+      EvaluationPeriods: 1
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref PostsFunction
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  TasksFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Stage}-tasks-errors"
+      AlarmDescription: !Sub "Lambda function ${ProjectName}-${Stage}-tasks is returning errors."
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Statistic: Sum
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 300
+      EvaluationPeriods: 1
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref TasksFunction
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  ApiGateway5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Stage}-api-5xx"
+      AlarmDescription: !Sub "API Gateway ${ProjectName}-${Stage}-api is returning 5XX errors."
+      Namespace: AWS/ApiGateway
+      MetricName: 5XXError
+      Statistic: Sum
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 1
+      Period: 300
+      EvaluationPeriods: 1
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub "${ProjectName}-${Stage}-api"
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+  ApiGateway4xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-${Stage}-api-4xx"
+      AlarmDescription: !Sub "API Gateway ${ProjectName}-${Stage}-api is returning an elevated rate of 4XX errors."
+      Namespace: AWS/ApiGateway
+      MetricName: 4XXError
+      Statistic: Sum
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: 50
+      Period: 300
+      EvaluationPeriods: 1
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub "${ProjectName}-${Stage}-api"
+      AlarmActions: [!Ref AlarmTopic]
+      OKActions: [!Ref AlarmTopic]
+
+Outputs:
+  ApiId:
+    Description: REST API ID - used by scripts/publish-api-domain.sh to compute the regional domain name for Terraform's CloudFront origin.
+    Value: !Ref Api
+
+  ApiDomainName:
+    Description: Regional execute-api domain name (without stage path).
+    Value: !Sub "${Api}.execute-api.${AWS::Region}.amazonaws.com"
+
+  ApiInvokeUrl:
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+
+  UserFunctionArn:
+    Value: !GetAtt UserFunction.Arn
+
+  PostsFunctionArn:
+    Value: !GetAtt PostsFunction.Arn
+
+  TasksFunctionArn:
+    Value: !GetAtt TasksFunction.Arn

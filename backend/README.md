@@ -146,26 +146,26 @@ listed here for manual/CLI deploys):
   signing secret — same secret can be shared by all three functions),
   `CORS_ALLOW_ORIGINS`.
 
-## Terraform
+## Deployment: AWS SAM (Lambda + API Gateway) + Terraform (everything else)
 
-`terraform/environments/dev|prod` now provisions this exact architecture: 4
-DynamoDB tables, 1 shared Lambda Layer, 3 Python 3.12 Lambda functions
-(`main.handler`), and one API Gateway REST API that path-routes `/auth/*` +
-`/users/*` → the user function, `/posts/*` → the posts function, and
-`/groups/*` + `/tasks/*` → the tasks function. See `terraform/README.md` →
-"Backend Lambda architecture" for how the modules wire together, and
-`terraform/environments/*/terraform.tfvars.example` for the variables to set
-(in particular `lambda_user_source_dir` / `lambda_posts_source_dir` /
-`lambda_tasks_source_dir` / `lambda_layer_source_dir`, pointed at this
-`backend/` tree).
+This `backend/` tree is deployed by **AWS SAM**, not Terraform — see
+`sam/README.md`. `sam/template.yaml` points each function's `CodeUri`
+straight at `backend/modules/<name>` and the layer's `ContentUri` at
+`backend/layers/common` (no copy/zip step needed locally; `sam build` does
+it, using the exact same `pip install -r requirements.txt -t python/`
+mechanism described above for the layer).
 
-One simplification worth knowing about: all 3 functions share a single IAM
-execution role (scoped to the 4 tables + their GSIs, the images bucket, and
-the JWT secret — no wildcards), rather than 3 least-privilege roles. The
-`user` function, for instance, never touches S3 but can technically assume
-the same role that can. Splitting into 3 roles is a reasonable hardening
-follow-up (see the comment above `module.iam` in `environments/*/main.tf`)
-but wasn't required to make the backend functionally deployable.
+Each of the 3 functions gets its own least-privilege IAM execution role
+(`user` → `Users` table + secret; `posts` → `Posts` table + images bucket +
+secret; `tasks` → `Groups`/`Tasks` tables + secret) defined via SAM policy
+templates (`DynamoDBCrudPolicy`, `S3CrudPolicy`,
+`AWSSecretsManagerGetSecretValuePolicy`) in `sam/template.yaml`.
+
+DynamoDB, the images bucket, and the JWT secret itself are still provisioned
+by Terraform (`terraform/environments/dev|prod`) — SAM reads their
+names/ARNs via SSM Parameter Store at deploy time. See
+`terraform/README.md` → "Serverless migration" for the full split and
+`sam/README.md` → "Cross-stack references" for how the two sides connect.
 
 ## Known scope limitations (acceptable for this project's size, called out for honesty)
 

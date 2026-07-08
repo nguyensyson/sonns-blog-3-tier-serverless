@@ -1,0 +1,41 @@
+# dev environment config - usage:
+#   sam deploy --config-file env/dev.toml --config-env dev
+#   sam build && sam deploy --config-file env/dev.toml --config-env dev --no-confirm-changeset --no-fail-on-empty-changeset
+#
+# UsersTableName / PostsTableName / ... / SecretArn use SAM's native
+# {{resolve:ssm:...}} dynamic reference syntax to read values Terraform wrote
+# to SSM Parameter Store (terraform/environments/dev/main.tf, "SSM bridge"
+# section) - CloudFormation resolves these at deploy time, no copy/paste.
+
+[dev]
+[dev.deploy]
+[dev.deploy.parameters]
+stack_name = "sonns-blogs-dev-backend"
+region = "ap-southeast-1"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+parameter_overrides = "ProjectName=sonns-blogs Stage=dev UsersTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/users-table-name}} PostsTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/posts-table-name}} GroupsTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/groups-table-name}} TasksTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/tasks-table-name}} ImagesBucketName={{resolve:ssm:/sonns-blogs-dev/s3/images-bucket-name}} SecretName={{resolve:ssm:/sonns-blogs-dev/secrets/app-secret-name}} SecretArn={{resolve:ssm:/sonns-blogs-dev/secrets/app-secret-arn}} CorsAllowOrigins=https://dev.sonns.cloud LambdaMemorySize=128 LambdaTimeout=10 LogRetentionInDays=30 AlarmEmail=ssnguyenson5671@gmail.com ApiThrottlingRateLimit=50 ApiThrottlingBurstLimit=100"
+
+[dev.build]
+[dev.build.parameters]
+cached = true
+parallel = true
+use_container = true
+
+[dev.validate]
+[dev.validate.parameters]
+lint = true
+
+# `sam local start-api --config-file env/dev.toml --config-env dev` reads
+# this section - same parameter_overrides as deploy so local runs see real
+# dev table/bucket/secret names (still needs AWS credentials - see README.md
+# "Local development").
+[dev.local_start_api]
+[dev.local_start_api.parameters]
+parameter_overrides = "ProjectName=sonns-blogs Stage=dev UsersTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/users-table-name}} PostsTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/posts-table-name}} GroupsTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/groups-table-name}} TasksTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/tasks-table-name}} ImagesBucketName={{resolve:ssm:/sonns-blogs-dev/s3/images-bucket-name}} SecretName={{resolve:ssm:/sonns-blogs-dev/secrets/app-secret-name}} SecretArn={{resolve:ssm:/sonns-blogs-dev/secrets/app-secret-arn}} CorsAllowOrigins=https://dev.sonns.cloud LambdaMemorySize=128 LambdaTimeout=10 LogRetentionInDays=30 AlarmEmail=ssnguyenson5671@gmail.com ApiThrottlingRateLimit=50 ApiThrottlingBurstLimit=100"
+
+[dev.local_invoke]
+[dev.local_invoke.parameters]
+parameter_overrides = "ProjectName=sonns-blogs Stage=dev UsersTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/users-table-name}} PostsTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/posts-table-name}} GroupsTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/groups-table-name}} TasksTableName={{resolve:ssm:/sonns-blogs-dev/dynamodb/tasks-table-name}} ImagesBucketName={{resolve:ssm:/sonns-blogs-dev/s3/images-bucket-name}} SecretName={{resolve:ssm:/sonns-blogs-dev/secrets/app-secret-name}} SecretArn={{resolve:ssm:/sonns-blogs-dev/secrets/app-secret-arn}} CorsAllowOrigins=https://dev.sonns.cloud LambdaMemorySize=128 LambdaTimeout=10 LogRetentionInDays=30 AlarmEmail=ssnguyenson5671@gmail.com ApiThrottlingRateLimit=50 ApiThrottlingBurstLimit=100"

@@ -45,66 +45,10 @@ variable "create_route53_zone" {
 }
 
 # --- Lambda ---
-# Backend is 3 independent Python/FastAPI functions sharing one Lambda Layer
-# (see backend/README.md). Each *_source_dir points at the module's own
-# directory - only that directory's contents get zipped for that function.
-
-variable "lambda_user_source_dir" {
-  description = "Path to the User Lambda function source directory (backend/modules/user)."
-  type        = string
-}
-
-variable "lambda_posts_source_dir" {
-  description = "Path to the Posts Lambda function source directory (backend/modules/posts)."
-  type        = string
-}
-
-variable "lambda_tasks_source_dir" {
-  description = "Path to the Tasks Lambda function source directory (backend/modules/tasks)."
-  type        = string
-}
-
-variable "lambda_layer_source_dir" {
-  description = "Path to the shared Lambda Layer directory (backend/layers/common) - must already contain a populated python/ folder (`pip install -r requirements.txt -t python/`). Ignored if lambda_layer_zip_path is set."
-  type        = string
-  default     = null
-}
-
-variable "lambda_layer_zip_path" {
-  description = "Path to a pre-built common-layer.zip (e.g. produced by CI/CD). Takes precedence over lambda_layer_source_dir."
-  type        = string
-  default     = null
-}
-
-variable "lambda_runtime" {
-  description = "Lambda runtime identifier."
-  type        = string
-  default     = "python3.12"
-}
-
-variable "lambda_handler" {
-  description = "Lambda function handler, shared by all 3 modules (each module's main.py exposes `handler = Mangum(app)`)."
-  type        = string
-  default     = "main.handler"
-}
-
-variable "lambda_memory_size" {
-  description = "Lambda memory (MB). Kept low in dev to control cost."
-  type        = number
-  default     = 128
-}
-
-variable "lambda_timeout" {
-  description = "Lambda timeout (seconds)."
-  type        = number
-  default     = 10
-}
-
-variable "cors_allow_origins" {
-  description = "Comma-separated list of allowed CORS origins passed to every function as CORS_ALLOW_ORIGINS (e.g. \"https://dev.example.com\"). Use \"*\" only for early testing."
-  type        = string
-  default     = "*"
-}
+# The 3 Lambda functions + shared layer moved to SAM (see sam/template.yaml,
+# sam/env/<stage>.toml) - there is nothing left to configure here. This
+# environment only feeds SAM the resources below it still owns, via SSM
+# parameters (see main.tf "SSM bridge" section).
 
 # --- DynamoDB ---
 # Table hash/range keys and GSIs are fixed by the application code (see
@@ -126,18 +70,9 @@ variable "secret_description" {
 }
 
 # --- CloudWatch ---
-
-variable "log_retention_days" {
-  description = "CloudWatch log retention (days). Shorter in dev to control cost."
-  type        = number
-  default     = 30
-}
-
-variable "alarm_email" {
-  description = "Optional email address subscribed to CloudWatch alarm notifications."
-  type        = string
-  default     = ""
-}
+# Log groups/alarms for the Lambda functions and API Gateway moved to SAM
+# (see sam/template.yaml) - only the account-level API Gateway CloudWatch
+# logging role setting is still configured here.
 
 variable "manage_apigateway_account_settings" {
   description = "Whether this environment manages the account-wide API Gateway CloudWatch logging role. See modules/iam for details on this singleton setting."

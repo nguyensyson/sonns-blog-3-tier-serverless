@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "resource": "/{proxy+}",
+  "path": "/health",
+  "httpMethod": "GET",
+  "headers": { "Content-Type": "application/json" },
+  "multiValueHeaders": {},
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": { "proxy": "health" },
+  "stageVariables": null,
+  "requestContext": {
+    "resourceId": "123456",
+    "resourcePath": "/{proxy+}",
+    "httpMethod": "GET",
+    "path": "/dev/health",
+    "stage": "dev",
+    "identity": { "sourceIp": "127.0.0.1" }
+  },
+  "body": null,
+  "isBase64Encoded": false
+}

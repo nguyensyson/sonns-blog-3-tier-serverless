@@ -1,0 +1,25 @@
+# prod environment config - usage:
+#   sam deploy --config-file env/prod.toml --config-env prod
+#
+# See env/dev.toml for an explanation of the {{resolve:ssm:...}} references.
+
+[prod]
+[prod.deploy]
+[prod.deploy.parameters]
+stack_name = "sonns-blogs-prod-backend"
+region = "ap-southeast-1"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+parameter_overrides = "ProjectName=sonns-blogs Stage=prod UsersTableName={{resolve:ssm:/sonns-blogs-prod/dynamodb/users-table-name}} PostsTableName={{resolve:ssm:/sonns-blogs-prod/dynamodb/posts-table-name}} GroupsTableName={{resolve:ssm:/sonns-blogs-prod/dynamodb/groups-table-name}} TasksTableName={{resolve:ssm:/sonns-blogs-prod/dynamodb/tasks-table-name}} ImagesBucketName={{resolve:ssm:/sonns-blogs-prod/s3/images-bucket-name}} SecretName={{resolve:ssm:/sonns-blogs-prod/secrets/app-secret-name}} SecretArn={{resolve:ssm:/sonns-blogs-prod/secrets/app-secret-arn}} CorsAllowOrigins=https://blog.sonns.cloud LambdaMemorySize=256 LambdaTimeout=15 LogRetentionInDays=90 AlarmEmail=ssnguyenson5671@gmail.com ApiThrottlingRateLimit=100 ApiThrottlingBurstLimit=200"
+
+[prod.build]
+[prod.build.parameters]
+cached = true
+parallel = true
+use_container = true
+
+[prod.validate]
+[prod.validate.parameters]
+lint = true
