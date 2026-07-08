@@ -2,6 +2,7 @@ aws_region        = "ap-southeast-1"
 project_name      = "sonns-blogs"
 state_bucket_name = "sonns-blogs-terraform-state-<unique-suffix>"
 lock_table_name   = "sonns-blogs-terraform-locks"
+github_repository = "nguyensyson/sonns-blog-3-tier-serverless"
 
 tags = {
   Owner = "sonns"

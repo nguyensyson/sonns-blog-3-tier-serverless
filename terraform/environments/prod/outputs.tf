@@ -2,6 +2,11 @@ output "cloudfront_domain_name" {
   value = module.cloudfront.domain_name
 }
 
+output "cloudfront_distribution_id" {
+  description = "Used by the frontend deploy workflow to invalidate the cache after each S3 sync."
+  value       = module.cloudfront.distribution_id
+}
+
 output "site_url" {
   value = "https://${var.site_domain_name}"
 }

@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
@@ -75,4 +79,17 @@ resource "aws_dynamodb_table" "terraform_locks" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# --- GitHub Actions CI/CD ---
+# One OIDC-federated IAM role every environment's deploy workflow assumes -
+# no long-lived AWS access keys stored in GitHub. Lives in bootstrap (not an
+# environment) because it's account-wide, same as the state bucket/lock table.
+
+module "github_actions_oidc" {
+  source = "../modules/github-oidc"
+
+  project_name      = var.project_name
+  github_repository = var.github_repository
+  tags              = var.tags
 }

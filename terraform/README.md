@@ -58,7 +58,30 @@ terraform apply
 terraform output
 ```
 
-Keep the four outputs handy: `state_bucket_name`, `lock_table_name`, `aws_region`.
+Keep the outputs handy: `state_bucket_name`, `lock_table_name`, `aws_region`,
+`github_actions_role_arn`.
+
+Bootstrap also creates the GitHub OIDC provider + IAM role
+(`modules/github-oidc`) that the CI/CD workflows in `.github/workflows/`
+assume instead of using static AWS access keys. To wire it up:
+
+1. Set `github_repository` in `terraform/bootstrap/terraform.tfvars` to
+   `"<owner>/<repo>"`.
+2. After `terraform apply`, copy the `github_actions_role_arn` output into
+   the repo's **Settings → Secrets and variables → Actions → Variables** as
+   `AWS_GITHUB_ACTIONS_ROLE_ARN`.
+3. Also add these (non-secret) repo variables — they mirror
+   `environments/prod/terraform.tfvars.example`, since that file is
+   gitignored and CI has to regenerate it: `AWS_REGION`, `PROJECT_NAME`,
+   `OWNER`, `COST_CENTER`, `ROOT_DOMAIN_NAME`, `SITE_DOMAIN_NAME`,
+   `CORS_ALLOW_ORIGINS`, `ALARM_EMAIL`.
+
+By default the role only trusts `workflow_dispatch`/push-triggered runs on
+`main` (see `github-oidc`'s `allowed_subjects`), and its IAM permissions are
+`PowerUserAccess` (everything except IAM/Organizations) plus a scoped policy
+letting it manage only `<project_name>-*` IAM roles/policies — enough to
+create/attach the Lambda execution role and the API Gateway CloudWatch role,
+nothing account-wide.
 
 ### 2. Wire up an environment's backend
 

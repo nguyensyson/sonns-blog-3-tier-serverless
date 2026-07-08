@@ -25,3 +25,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "github_repository" {
+  description = "GitHub repo allowed to assume the CI/CD deploy role via OIDC, as \"owner/repo\" (e.g. \"nguyensyson/sonns-blog-3-tier-serverless\")."
+  type        = string
+}
