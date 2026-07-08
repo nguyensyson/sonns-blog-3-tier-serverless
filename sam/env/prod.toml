@@ -3,6 +3,8 @@
 #
 # See env/dev.toml for an explanation of the {{resolve:ssm:...}} references.
 
+version = 0.1
+
 [prod]
 [prod.deploy]
 [prod.deploy.parameters]
