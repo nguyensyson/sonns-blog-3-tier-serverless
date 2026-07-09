@@ -25,10 +25,36 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
 resource "aws_s3_bucket_public_access_block" "this" {
   bucket = aws_s3_bucket.this.id
 
+  # ACLs stay blocked regardless - public read is granted via the bucket
+  # policy below (s3:GetObject only), never per-object ACLs.
   block_public_acls       = true
-  block_public_policy     = true
   ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_policy     = !var.enable_public_read
+  restrict_public_buckets = !var.enable_public_read
+}
+
+data "aws_iam_policy_document" "public_read" {
+  count = var.enable_public_read ? 1 : 0
+
+  statement {
+    sid       = "PublicReadGetObject"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.this.arn}/*"]
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "public_read" {
+  count = var.enable_public_read ? 1 : 0
+
+  bucket     = aws_s3_bucket.this.id
+  policy     = data.aws_iam_policy_document.public_read[0].json
+  depends_on = [aws_s3_bucket_public_access_block.this]
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {

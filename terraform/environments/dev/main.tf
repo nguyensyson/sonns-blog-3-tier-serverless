@@ -114,8 +114,9 @@ module "secrets_manager" {
 module "s3_images_bucket" {
   source = "../../modules/s3-images-bucket"
 
-  bucket_name = local.images_bucket_name
-  tags        = local.common_tags
+  bucket_name        = local.images_bucket_name
+  enable_public_read = true
+  tags               = local.common_tags
 }
 
 # --- IAM ---
@@ -199,8 +200,8 @@ resource "aws_ssm_parameter" "app_secret_arn" {
 # sam/README.md "Cross-stack references" for the full two-phase apply order.
 
 resource "aws_ssm_parameter" "api_gateway_domain_name" {
-  name  = "/${local.name_prefix}/apigateway/domain-name"
-  type  = "String"
+  name = "/${local.name_prefix}/apigateway/domain-name"
+  type = "String"
   # Must be syntactically a valid domain name (dots, hostname chars) - it's
   # used as a CloudFront origin's domain_name at creation time on a brand-new
   # environment, and CloudFront rejects non-domain-shaped values outright.

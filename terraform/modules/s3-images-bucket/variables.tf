@@ -38,3 +38,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_public_read" {
+  description = "Allow anonymous public read (s3:GetObject) on all objects. Needed because images are served directly via their S3 URL rather than through CloudFront."
+  type        = bool
+  default     = false
+}

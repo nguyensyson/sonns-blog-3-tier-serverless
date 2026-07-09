@@ -108,6 +108,15 @@ Resources:
           Parameters:
             Location: api/openapi.yaml
       EndpointConfiguration: REGIONAL
+      # Without this, API Gateway treats every request/response body as UTF-8
+      # text (no binaryMediaTypes = empty list) - any non-UTF-8 byte (e.g. raw
+      # JPEG bytes from the multipart/form-data image upload) gets replaced
+      # with U+FFFD before Lambda ever sees it, permanently corrupting the
+      # file. "*/*" is used instead of an exact "multipart/form-data" entry
+      # because the browser's Content-Type always carries a dynamic
+      # "; boundary=..." suffix that would never exact-match.
+      BinaryMediaTypes:
+        - "*/*"
       AccessLogSetting:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
         Format: >-
