@@ -18,6 +18,7 @@ function mapPost(post) {
     content: post.content,
     images: post.images || {},
     coverIndex: post.coverIndex,
+    coverImageUrl: post.coverImageUrl || '',
     date: post.date,
     readTime: post.readTime,
     isOwner: post.isOwner,
@@ -48,7 +49,7 @@ function dataUrlToFile(dataUrl, filename) {
   return new File([bytes], filename, { type: mime });
 }
 
-function toApiBody({ title, tag, excerpt, content, images, coverIndex, date }) {
+function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImageUrl, date }) {
   return {
     title,
     tag: (tag || '').trim(),
@@ -56,8 +57,19 @@ function toApiBody({ title, tag, excerpt, content, images, coverIndex, date }) {
     content,
     images: images || {},
     coverIndex,
+    coverImageUrl: coverImageUrl || null,
     date,
   };
+}
+
+// Mirrors resolveImages() above but for the single cover-image field: if the
+// user just picked a new file it's still a data: URL in form state, so it
+// needs to be uploaded to S3 before the post is saved.
+async function resolveCoverImage(coverImageUrl) {
+  if (typeof coverImageUrl !== 'string' || !coverImageUrl.startsWith('data:')) return coverImageUrl;
+  const file = dataUrlToFile(coverImageUrl, 'cover');
+  const res = await postsApi.uploadImage(file);
+  return res.data.url;
 }
 
 const BlogContext = createContext(null);
@@ -134,6 +146,7 @@ export function BlogProvider({ children }) {
     const finalCategory = category === 'journal' ? 'journal' : 'blog';
     const body = toApiBody(form);
     body.images = await resolveImages(body.images);
+    body.coverImageUrl = await resolveCoverImage(body.coverImageUrl);
     if (finalCategory === 'journal') {
       await postsApi.createDiary(body);
       await loadJournalEntries();
@@ -147,6 +160,7 @@ export function BlogProvider({ children }) {
     const finalCategory = resolveCategory(id, category);
     const body = toApiBody(form);
     body.images = await resolveImages(body.images);
+    body.coverImageUrl = await resolveCoverImage(body.coverImageUrl);
     if (finalCategory === 'journal') {
       await postsApi.updateDiary(id, body);
       await loadJournalEntries();

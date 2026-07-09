@@ -6,7 +6,8 @@ import RichTextEditor from '../components/RichTextEditor/RichTextEditor';
 import { isContentEmpty } from '../utils/contentSerializer';
 import { getErrorMessage } from '../api/client';
 
-const EMPTY_FORM = { title: '', tag: '', excerpt: '', content: '', images: {}, coverIndex: 0 };
+const EMPTY_FORM = { title: '', tag: '', excerpt: '', content: '', images: {}, coverIndex: 0, coverImageUrl: '' };
+const ACCEPTED_COVER_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 export default function AdminPage() {
   const { blogPosts, isLoggedIn, addPost, updatePost, deletePost } = useBlog();
@@ -28,6 +29,19 @@ export default function AdminPage() {
   if (!isLoggedIn) return <Navigate to="/login" replace />;
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleCoverImagePicked = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!ACCEPTED_COVER_TYPES.includes(file.type)) {
+      window.alert('Chỉ hỗ trợ ảnh JPG, PNG, GIF hoặc WEBP.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setForm((f) => ({ ...f, coverImageUrl: reader.result }));
+    reader.readAsDataURL(file);
+  };
 
   const closeForm = () => {
     setIsFormOpen(false);
@@ -70,6 +84,7 @@ export default function AdminPage() {
       content: post.content,
       images: post.images || {},
       coverIndex: post.coverIndex,
+      coverImageUrl: post.coverImageUrl || '',
     });
     setIsFormOpen(true);
   };
@@ -144,7 +159,34 @@ export default function AdminPage() {
                 onChange={({ content, images }) => setForm((f) => ({ ...f, content, images }))}
               />
               <div>
-                <div className="cover-picker-label">Màu ảnh bìa</div>
+                <div className="cover-picker-label">Ảnh minh hoạ bài viết</div>
+                <div className="cover-image-picker">
+                  {form.coverImageUrl && (
+                    <div className="cover-image-preview">
+                      <img src={form.coverImageUrl} alt="Xem trước ảnh bìa" />
+                      <button
+                        type="button"
+                        className="cover-image-remove"
+                        onClick={() => setForm((f) => ({ ...f, coverImageUrl: '' }))}
+                        aria-label="Xóa ảnh bìa"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <label className="cover-image-upload-btn">
+                    {form.coverImageUrl ? 'Đổi ảnh khác' : '+ Tải ảnh lên'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={handleCoverImagePicked}
+                    />
+                  </label>
+                </div>
+              </div>
+              <div>
+                <div className="cover-picker-label">Màu ảnh bìa (dùng khi chưa có ảnh)</div>
                 <div className="cover-picker-options">
                   {[0, 1].map((i) => {
                     const accent = ACCENTS[i];

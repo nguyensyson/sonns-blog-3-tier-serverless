@@ -12,6 +12,7 @@ class PostCreateRequest(BaseModel):
     content: str = Field(default="")
     images: Dict[str, str] = Field(default_factory=dict)
     coverIndex: int = Field(default=0, ge=0, le=1)
+    coverImageUrl: Optional[str] = Field(default=None, max_length=1000)
     # Blog-only (ignored for diary/journal entries).
     status: Optional[str] = Field(default="published")
     # Diary/journal-only free-text display date (e.g. "Sep 2025 — Hiện tại").
@@ -39,6 +40,7 @@ class PostResponse(BaseModel):
     content: str
     images: Dict[str, str]
     coverIndex: int
+    coverImageUrl: Optional[str] = None
     status: Optional[str] = None
     date: Optional[str] = None
     readTime: str

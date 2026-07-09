@@ -65,8 +65,14 @@ export default function PostDetailPage() {
         </div>
         <h1 className="detail-title">{post.title}</h1>
         <div className="post-cover detail-cover">
-          <span className="cover-dot" style={{ background: accent }} />
-          <span className="cover-label detail">ẢNH MINH HOẠ</span>
+          {post.coverImageUrl ? (
+            <img className="post-cover-img" src={post.coverImageUrl} alt={post.title} />
+          ) : (
+            <>
+              <span className="cover-dot" style={{ background: accent }} />
+              <span className="cover-label detail">ẢNH MINH HOẠ</span>
+            </>
+          )}
         </div>
         <div
           className="detail-rich-content"

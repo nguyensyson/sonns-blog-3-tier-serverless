@@ -8,8 +8,14 @@ export default function PostCard({ post }) {
   return (
     <button className="post-card" onClick={() => navigate(`/post/${post.id}`)}>
       <div className="post-cover">
-        <span className="cover-dot" style={{ background: accent }} />
-        <span className="cover-label">ẢNH MINH HOẠ</span>
+        {post.coverImageUrl ? (
+          <img className="post-cover-img" src={post.coverImageUrl} alt={post.title} />
+        ) : (
+          <>
+            <span className="cover-dot" style={{ background: accent }} />
+            <span className="cover-label">ẢNH MINH HOẠ</span>
+          </>
+        )}
       </div>
       <div className="post-card-body">
         <div className="post-meta">
