@@ -396,8 +396,6 @@ textarea:focus {
   position: sticky;
   top: 32px;
   align-self: start;
-  max-height: calc(100vh - 64px);
-  overflow-y: auto;
   padding-right: 8px;
 }
 
