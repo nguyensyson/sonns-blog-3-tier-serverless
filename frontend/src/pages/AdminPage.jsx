@@ -6,8 +6,20 @@ import RichTextEditor from '../components/RichTextEditor/RichTextEditor';
 import { isContentEmpty } from '../utils/contentSerializer';
 import { getErrorMessage } from '../api/client';
 
-const EMPTY_FORM = { title: '', tag: '', excerpt: '', content: '', images: {}, coverIndex: 0, coverImageUrl: '' };
+const EMPTY_FORM = {
+  title: '',
+  tag: '',
+  excerpt: '',
+  content: '',
+  images: {},
+  coverIndex: 0,
+  coverImageUrl: '',
+  resourceFile: null,
+  resourceUrl: '',
+  resourceName: '',
+};
 const ACCEPTED_COVER_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const ACCEPTED_RESOURCE_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.pdf', '.zip', '.doc', '.docx', '.txt', '.json'];
 
 export default function AdminPage() {
   const { blogPosts, isLoggedIn, addPost, updatePost, deletePost } = useBlog();
@@ -41,6 +53,18 @@ export default function AdminPage() {
     const reader = new FileReader();
     reader.onload = () => setForm((f) => ({ ...f, coverImageUrl: reader.result }));
     reader.readAsDataURL(file);
+  };
+
+  const handleResourceFilePicked = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const ext = `.${file.name.split('.').pop()?.toLowerCase() || ''}`;
+    if (!ACCEPTED_RESOURCE_EXTENSIONS.includes(ext)) {
+      window.alert('Chỉ hỗ trợ CSV, XLSX, XLS, PDF, ZIP, DOC, DOCX, TXT hoặc JSON.');
+      return;
+    }
+    setForm((f) => ({ ...f, resourceFile: file, resourceUrl: '', resourceName: file.name }));
   };
 
   const closeForm = () => {
@@ -85,6 +109,9 @@ export default function AdminPage() {
       images: post.images || {},
       coverIndex: post.coverIndex,
       coverImageUrl: post.coverImageUrl || '',
+      resourceFile: null,
+      resourceUrl: post.resourceUrl || '',
+      resourceName: post.resourceName || '',
     });
     setIsFormOpen(true);
   };
@@ -181,6 +208,35 @@ export default function AdminPage() {
                       accept="image/png,image/jpeg,image/gif,image/webp"
                       style={{ display: 'none' }}
                       onChange={handleCoverImagePicked}
+                    />
+                  </label>
+                </div>
+              </div>
+              <div>
+                <div className="cover-picker-label">Tệp tài nguyên đính kèm (CSV, XLSX, PDF, ZIP, DOCX...)</div>
+                <div className="cover-image-picker">
+                  {(form.resourceFile || form.resourceUrl) && (
+                    <div className="resource-file-preview">
+                      <span className="resource-file-name">
+                        {form.resourceFile ? form.resourceFile.name : form.resourceName}
+                      </span>
+                      <button
+                        type="button"
+                        className="resource-file-remove"
+                        onClick={() => setForm((f) => ({ ...f, resourceFile: null, resourceUrl: '', resourceName: '' }))}
+                        aria-label="Xóa tệp tài nguyên"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  <label className="cover-image-upload-btn">
+                    {form.resourceFile || form.resourceUrl ? 'Đổi tệp khác' : '+ Tải tệp lên'}
+                    <input
+                      type="file"
+                      accept={ACCEPTED_RESOURCE_EXTENSIONS.join(',')}
+                      style={{ display: 'none' }}
+                      onChange={handleResourceFilePicked}
                     />
                   </label>
                 </div>

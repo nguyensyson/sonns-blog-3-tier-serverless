@@ -74,6 +74,22 @@ export default function PostDetailPage() {
             </>
           )}
         </div>
+        {post.resourceUrl && (
+          <a
+            className="resource-download-banner"
+            href={post.resourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            download={post.resourceName || undefined}
+          >
+            <span className="resource-download-icon" aria-hidden="true">
+              ⬇
+            </span>
+            <span className="resource-download-text">
+              Tải tài nguyên đính kèm{post.resourceName ? `: ${post.resourceName}` : ''}
+            </span>
+          </a>
+        )}
         <div
           className="detail-rich-content"
           dangerouslySetInnerHTML={{

@@ -6,6 +6,7 @@ from config import settings
 from routers.blog import router as blog_router
 from routers.diary import router as diary_router
 from routers.images import router as images_router
+from routers.resources import router as resources_router
 from utils.exceptions import register_exception_handlers
 from utils.response import success_response
 
@@ -24,6 +25,7 @@ register_exception_handlers(app)
 app.include_router(blog_router)
 app.include_router(diary_router)
 app.include_router(images_router)
+app.include_router(resources_router)
 
 
 @app.get("/health")

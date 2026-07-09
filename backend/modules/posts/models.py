@@ -13,6 +13,8 @@ class PostCreateRequest(BaseModel):
     images: Dict[str, str] = Field(default_factory=dict)
     coverIndex: int = Field(default=0, ge=0, le=1)
     coverImageUrl: Optional[str] = Field(default=None, max_length=1000)
+    resourceUrl: Optional[str] = Field(default=None, max_length=1000)
+    resourceName: Optional[str] = Field(default=None, max_length=255)
     # Blog-only (ignored for diary/journal entries).
     status: Optional[str] = Field(default="published")
     # Diary/journal-only free-text display date (e.g. "Sep 2025 — Hiện tại").
@@ -41,6 +43,8 @@ class PostResponse(BaseModel):
     images: Dict[str, str]
     coverIndex: int
     coverImageUrl: Optional[str] = None
+    resourceUrl: Optional[str] = None
+    resourceName: Optional[str] = None
     status: Optional[str] = None
     date: Optional[str] = None
     readTime: str
@@ -56,3 +60,8 @@ class PaginatedPosts(BaseModel):
 
 class UploadImageResponse(BaseModel):
     url: str
+
+
+class UploadResourceResponse(BaseModel):
+    url: str
+    name: str

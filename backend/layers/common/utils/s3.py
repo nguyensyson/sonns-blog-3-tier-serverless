@@ -27,10 +27,12 @@ def build_public_url(key: str) -> str:
     return f"https://{settings.images_bucket_name}.s3.{settings.aws_region}.amazonaws.com/{key}"
 
 
-def upload_bytes(content: bytes, content_type: str, key_prefix: str = "posts") -> str:
+def upload_bytes(content: bytes, content_type: str, key_prefix: str = "posts", ext: str = None) -> str:
     """Uploads raw bytes to the images bucket and returns the public URL to
-    store in place of a {{imageN.ext}} placeholder."""
-    ext = _EXT_BY_CONTENT_TYPE.get(content_type, ".bin")
+    store in place of a {{imageN.ext}} placeholder. `ext` overrides the
+    content-type-derived extension (used for non-image resource files, whose
+    extension is taken from the original filename instead)."""
+    ext = ext or _EXT_BY_CONTENT_TYPE.get(content_type, ".bin")
     key = f"{key_prefix}/{uuid.uuid4().hex}{ext}"
     _client().put_object(Bucket=settings.images_bucket_name, Key=key, Body=content, ContentType=content_type)
     return build_public_url(key)

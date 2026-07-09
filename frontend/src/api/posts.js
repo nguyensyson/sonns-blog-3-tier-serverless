@@ -27,4 +27,10 @@ export const postsApi = {
     formData.append('file', file);
     return apiClient.post('/posts/upload-image', formData);
   },
+
+  uploadResource: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post('/posts/upload-resource', formData);
+  },
 };
