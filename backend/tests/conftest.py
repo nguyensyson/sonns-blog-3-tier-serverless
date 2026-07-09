@@ -3,7 +3,7 @@ import pathlib
 import sys
 
 BACKEND_DIR = pathlib.Path(__file__).resolve().parents[1]
-COMMON_LAYER_DIR = BACKEND_DIR / "layers" / "common" / "python"
+COMMON_LAYER_DIR = BACKEND_DIR / "layers" / "common"
 
 # Must be set before any module under test imports `config` (Settings reads
 # os.environ at import time).

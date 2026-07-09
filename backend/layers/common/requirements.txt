@@ -1,4 +1,6 @@
-# Installed into layers/common/python/ before zipping (see backend/README.md).
+# Installed into layers/common/ (flat, alongside config.py/auth/db/schemas/utils)
+# by `sam build`'s BuildMethod: python3.12, which wraps the whole layer dir in
+# a python/ prefix at package time - see backend/README.md and sam/template.yaml.
 # boto3/botocore are already present in the AWS Lambda Python runtime; they're
 # listed here only so local dev (uvicorn) has them too. They can be dropped
 # from the deployed layer zip to shrink it if desired.

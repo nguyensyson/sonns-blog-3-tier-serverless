@@ -18,6 +18,11 @@ terraform/modules/lambda-layer/.build/
 
 # SAM
 **/.aws-sam/
+*.tfplan
+
+# Python
+__pycache__/
+*.pyc
 
 # Note: .terraform.lock.hcl is intentionally NOT ignored - commit it for
 # reproducible provider versions across machines/CI.

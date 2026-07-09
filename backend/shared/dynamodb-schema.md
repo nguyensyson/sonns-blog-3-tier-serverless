@@ -1,6 +1,6 @@
 # DynamoDB schema (source of truth for both the app code and Terraform)
 
-Table/GSI names below must match `backend/layers/common/python/config.py`
+Table/GSI names below must match `backend/layers/common/config.py`
 (`USERS_TABLE_NAME`, `POSTS_TABLE_NAME`, `GROUPS_TABLE_NAME`,
 `TASKS_TABLE_NAME` env vars) and the index names each `modules/*/repository.py`
 queries by. See `backend/README.md` → "Current Terraform infrastructure does

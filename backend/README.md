@@ -36,10 +36,12 @@ Inside a module (e.g. `modules/posts/routers/blog.py`) you'll see
 `import service` or `from models import PostResponse` rather than relative
 imports. This matches how Lambda actually loads the code: each module's zip
 is extracted so `main.py`, `models.py`, `service.py`, `repository.py` sit at
-the *root* of `/var/task`, with the layer's `python/` directory mounted at
-`/opt/python` and added to `sys.path` automatically. Running `uvicorn
-main:app` from inside a module directory reproduces the same layout locally
-(current directory + `PYTHONPATH` pointing at the layer).
+the *root* of `/var/task`, with the layer contents mounted at `/opt/python`
+and added to `sys.path` automatically (SAM's `BuildMethod: python3.12` wraps
+`backend/layers/common` in a `python/` prefix at package time - see
+`sam/template.yaml`). Running `uvicorn main:app` from inside a module
+directory reproduces the same layout locally (current directory +
+`PYTHONPATH` pointing at the layer).
 
 ## Prerequisites
 
@@ -60,22 +62,22 @@ pip install -r requirements-dev.txt
 
 ## Running a module locally with uvicorn
 
-Every module needs the common layer's `python/` directory on `PYTHONPATH` in
-addition to its own directory. From the `backend/` folder:
+Every module needs the common layer's directory on `PYTHONPATH` in addition
+to its own directory. From the `backend/` folder:
 
 ```bash
 # User service on :8001
-PYTHONPATH=layers/common/python AWS_REGION=ap-southeast-1 JWT_SECRET=dev-secret \
-  USERS_TABLE_NAME=Users \
-  (cd modules/user && PYTHONPATH=../../layers/common/python:. uvicorn main:app --reload --port 8001)
+(cd modules/user && PYTHONPATH=../../layers/common:. \
+  AWS_REGION=ap-southeast-1 JWT_SECRET=dev-secret USERS_TABLE_NAME=Users \
+  uvicorn main:app --reload --port 8001)
 
 # Posts service on :8002
-(cd modules/posts && PYTHONPATH=../../layers/common/python:. \
+(cd modules/posts && PYTHONPATH=../../layers/common:. \
   POSTS_TABLE_NAME=Posts IMAGES_BUCKET_NAME=my-dev-bucket JWT_SECRET=dev-secret \
   uvicorn main:app --reload --port 8002)
 
 # Tasks service on :8003
-(cd modules/tasks && PYTHONPATH=../../layers/common/python:. \
+(cd modules/tasks && PYTHONPATH=../../layers/common:. \
   GROUPS_TABLE_NAME=Groups TASKS_TABLE_NAME=Tasks JWT_SECRET=dev-secret \
   uvicorn main:app --reload --port 8003)
 ```
