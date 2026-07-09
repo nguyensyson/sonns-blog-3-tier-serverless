@@ -35,8 +35,7 @@ def _build_payload(body, category: str) -> dict:
         "images": body.images,
         "coverIndex": body.coverIndex,
         "coverImageUrl": body.coverImageUrl,
-        "resourceUrl": body.resourceUrl,
-        "resourceName": body.resourceName,
+        "resources": [r.model_dump() for r in body.resources],
     }
     if category == "blog":
         data["status"] = body.status or "published"

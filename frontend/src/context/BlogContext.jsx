@@ -19,8 +19,7 @@ function mapPost(post) {
     images: post.images || {},
     coverIndex: post.coverIndex,
     coverImageUrl: post.coverImageUrl || '',
-    resourceUrl: post.resourceUrl || '',
-    resourceName: post.resourceName || '',
+    resources: post.resources || [],
     date: post.date,
     readTime: post.readTime,
     isOwner: post.isOwner,
@@ -51,7 +50,7 @@ function dataUrlToFile(dataUrl, filename) {
   return new File([bytes], filename, { type: mime });
 }
 
-function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImageUrl, resourceUrl, resourceName, date }) {
+function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImageUrl, resources, date }) {
   return {
     title,
     tag: (tag || '').trim(),
@@ -60,8 +59,7 @@ function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImag
     images: images || {},
     coverIndex,
     coverImageUrl: coverImageUrl || null,
-    resourceUrl: resourceUrl || null,
-    resourceName: resourceName || null,
+    resources: resources || [],
     date,
   };
 }
@@ -76,13 +74,18 @@ async function resolveCoverImage(coverImageUrl) {
   return res.data.url;
 }
 
-// Resource files (CSV etc.) are kept as a real File in form.resourceFile
-// while pending (never base64-encoded — they can be much larger than an
-// inline image) and only uploaded to S3 at submit time.
-async function resolveResource({ resourceFile, resourceUrl, resourceName }) {
-  if (!resourceFile) return { resourceUrl: resourceUrl || null, resourceName: resourceName || null };
-  const res = await postsApi.uploadResource(resourceFile);
-  return { resourceUrl: res.data.url, resourceName: res.data.name };
+// Newly picked resource files (CSV etc.) are kept as real File objects in
+// form.resourceFiles while pending (never base64-encoded — they can be much
+// larger than an inline image) and only uploaded to S3 at submit time, then
+// appended to the already-persisted form.resources list.
+async function resolveResources({ resources, resourceFiles }) {
+  const uploaded = await Promise.all(
+    (resourceFiles || []).map(async (file) => {
+      const res = await postsApi.uploadResource(file);
+      return { url: res.data.url, name: res.data.name };
+    })
+  );
+  return [...(resources || []), ...uploaded];
 }
 
 const BlogContext = createContext(null);
@@ -160,7 +163,7 @@ export function BlogProvider({ children }) {
     const body = toApiBody(form);
     body.images = await resolveImages(body.images);
     body.coverImageUrl = await resolveCoverImage(body.coverImageUrl);
-    Object.assign(body, await resolveResource(form));
+    body.resources = await resolveResources(form);
     if (finalCategory === 'journal') {
       await postsApi.createDiary(body);
       await loadJournalEntries();
@@ -175,7 +178,7 @@ export function BlogProvider({ children }) {
     const body = toApiBody(form);
     body.images = await resolveImages(body.images);
     body.coverImageUrl = await resolveCoverImage(body.coverImageUrl);
-    Object.assign(body, await resolveResource(form));
+    body.resources = await resolveResources(form);
     if (finalCategory === 'journal') {
       await postsApi.updateDiary(id, body);
       await loadJournalEntries();

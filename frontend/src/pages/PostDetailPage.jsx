@@ -74,21 +74,26 @@ export default function PostDetailPage() {
             </>
           )}
         </div>
-        {post.resourceUrl && (
-          <a
-            className="resource-download-banner"
-            href={post.resourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            download={post.resourceName || undefined}
-          >
-            <span className="resource-download-icon" aria-hidden="true">
-              ⬇
-            </span>
-            <span className="resource-download-text">
-              Tải tài nguyên đính kèm{post.resourceName ? `: ${post.resourceName}` : ''}
-            </span>
-          </a>
+        {post.resources && post.resources.length > 0 && (
+          <div className="resource-download-list">
+            {post.resources.map((res) => (
+              <a
+                className="resource-download-banner"
+                key={res.url}
+                href={res.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={res.name || undefined}
+              >
+                <span className="resource-download-icon" aria-hidden="true">
+                  ⬇
+                </span>
+                <span className="resource-download-text">
+                  Tải tài nguyên đính kèm{res.name ? `: ${res.name}` : ''}
+                </span>
+              </a>
+            ))}
+          </div>
         )}
         <div
           className="detail-rich-content"

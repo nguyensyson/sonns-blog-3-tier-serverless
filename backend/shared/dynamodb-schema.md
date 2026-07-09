@@ -37,8 +37,7 @@ stored value follows the frontend, not the spec wording).
 | content | S | HTML with `{{imageN.ext}}` placeholders |
 | images | M | placeholder → real S3 URL |
 | coverIndex | N | 0 or 1 (frontend's 2-color cover accent, not a real image) |
-| resourceUrl | S | optional; S3 URL of an attached downloadable resource file (CSV/XLSX/PDF/ZIP/DOC/DOCX/TXT/JSON) |
-| resourceName | S | optional; original filename of `resourceUrl`, shown as the download label |
+| resources | L | list of `{url, name}` attached downloadable resource files (CSV/XLSX/PDF/ZIP/DOC/DOCX/TXT/JSON); `name` is the original filename shown as the download label |
 | status | S | `"draft"` \| `"published"`; blog-only, null for journal entries |
 | date | S | free-text display date; journal-only, null for blog posts |
 | createdAt / updatedAt | S | ISO timestamp |

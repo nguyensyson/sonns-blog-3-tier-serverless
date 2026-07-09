@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field, field_validator
 ALLOWED_STATUSES = {"draft", "published"}
 
 
+class ResourceFile(BaseModel):
+    url: str = Field(max_length=1000)
+    name: str = Field(max_length=255)
+
+
 class PostCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     tag: str = Field(default="", max_length=50)
@@ -13,8 +18,7 @@ class PostCreateRequest(BaseModel):
     images: Dict[str, str] = Field(default_factory=dict)
     coverIndex: int = Field(default=0, ge=0, le=1)
     coverImageUrl: Optional[str] = Field(default=None, max_length=1000)
-    resourceUrl: Optional[str] = Field(default=None, max_length=1000)
-    resourceName: Optional[str] = Field(default=None, max_length=255)
+    resources: List[ResourceFile] = Field(default_factory=list)
     # Blog-only (ignored for diary/journal entries).
     status: Optional[str] = Field(default="published")
     # Diary/journal-only free-text display date (e.g. "Sep 2025 — Hiện tại").
@@ -43,8 +47,7 @@ class PostResponse(BaseModel):
     images: Dict[str, str]
     coverIndex: int
     coverImageUrl: Optional[str] = None
-    resourceUrl: Optional[str] = None
-    resourceName: Optional[str] = None
+    resources: List[ResourceFile] = Field(default_factory=list)
     status: Optional[str] = None
     date: Optional[str] = None
     readTime: str

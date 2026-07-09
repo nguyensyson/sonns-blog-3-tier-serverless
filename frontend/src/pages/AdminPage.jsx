@@ -14,9 +14,8 @@ const EMPTY_FORM = {
   images: {},
   coverIndex: 0,
   coverImageUrl: '',
-  resourceFile: null,
-  resourceUrl: '',
-  resourceName: '',
+  resources: [],
+  resourceFiles: [],
 };
 const ACCEPTED_COVER_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const ACCEPTED_RESOURCE_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.pdf', '.zip', '.doc', '.docx', '.txt', '.json'];
@@ -55,16 +54,30 @@ export default function AdminPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleResourceFilePicked = (e) => {
-    const file = e.target.files?.[0];
+  const handleResourceFilesPicked = (e) => {
+    const files = Array.from(e.target.files || []);
     e.target.value = '';
-    if (!file) return;
-    const ext = `.${file.name.split('.').pop()?.toLowerCase() || ''}`;
-    if (!ACCEPTED_RESOURCE_EXTENSIONS.includes(ext)) {
+    if (!files.length) return;
+    const valid = [];
+    const rejected = [];
+    files.forEach((file) => {
+      const ext = `.${file.name.split('.').pop()?.toLowerCase() || ''}`;
+      (ACCEPTED_RESOURCE_EXTENSIONS.includes(ext) ? valid : rejected).push(file);
+    });
+    if (rejected.length) {
       window.alert('Chỉ hỗ trợ CSV, XLSX, XLS, PDF, ZIP, DOC, DOCX, TXT hoặc JSON.');
-      return;
     }
-    setForm((f) => ({ ...f, resourceFile: file, resourceUrl: '', resourceName: file.name }));
+    if (valid.length) {
+      setForm((f) => ({ ...f, resourceFiles: [...f.resourceFiles, ...valid] }));
+    }
+  };
+
+  const removePersistedResource = (index) => {
+    setForm((f) => ({ ...f, resources: f.resources.filter((_, i) => i !== index) }));
+  };
+
+  const removePendingResourceFile = (index) => {
+    setForm((f) => ({ ...f, resourceFiles: f.resourceFiles.filter((_, i) => i !== index) }));
   };
 
   const closeForm = () => {
@@ -109,9 +122,8 @@ export default function AdminPage() {
       images: post.images || {},
       coverIndex: post.coverIndex,
       coverImageUrl: post.coverImageUrl || '',
-      resourceFile: null,
-      resourceUrl: post.resourceUrl || '',
-      resourceName: post.resourceName || '',
+      resources: post.resources || [],
+      resourceFiles: [],
     });
     setIsFormOpen(true);
   };
@@ -214,32 +226,44 @@ export default function AdminPage() {
               </div>
               <div>
                 <div className="cover-picker-label">Tệp tài nguyên đính kèm (CSV, XLSX, PDF, ZIP, DOCX...)</div>
-                <div className="cover-image-picker">
-                  {(form.resourceFile || form.resourceUrl) && (
-                    <div className="resource-file-preview">
-                      <span className="resource-file-name">
-                        {form.resourceFile ? form.resourceFile.name : form.resourceName}
-                      </span>
+                <div className="resource-file-list">
+                  {form.resources.map((res, i) => (
+                    <div className="resource-file-preview" key={`saved-${res.url}`}>
+                      <span className="resource-file-name">{res.name}</span>
                       <button
                         type="button"
                         className="resource-file-remove"
-                        onClick={() => setForm((f) => ({ ...f, resourceFile: null, resourceUrl: '', resourceName: '' }))}
+                        onClick={() => removePersistedResource(i)}
                         aria-label="Xóa tệp tài nguyên"
                       >
                         ✕
                       </button>
                     </div>
-                  )}
-                  <label className="cover-image-upload-btn">
-                    {form.resourceFile || form.resourceUrl ? 'Đổi tệp khác' : '+ Tải tệp lên'}
-                    <input
-                      type="file"
-                      accept={ACCEPTED_RESOURCE_EXTENSIONS.join(',')}
-                      style={{ display: 'none' }}
-                      onChange={handleResourceFilePicked}
-                    />
-                  </label>
+                  ))}
+                  {form.resourceFiles.map((file, i) => (
+                    <div className="resource-file-preview pending" key={`pending-${i}`}>
+                      <span className="resource-file-name">{file.name}</span>
+                      <button
+                        type="button"
+                        className="resource-file-remove"
+                        onClick={() => removePendingResourceFile(i)}
+                        aria-label="Xóa tệp tài nguyên"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
                 </div>
+                <label className="cover-image-upload-btn resource-upload-btn">
+                  + Tải tệp lên
+                  <input
+                    type="file"
+                    multiple
+                    accept={ACCEPTED_RESOURCE_EXTENSIONS.join(',')}
+                    style={{ display: 'none' }}
+                    onChange={handleResourceFilesPicked}
+                  />
+                </label>
               </div>
               <div>
                 <div className="cover-picker-label">Màu ảnh bìa (dùng khi chưa có ảnh)</div>
