@@ -33,7 +33,7 @@ paths:
         httpMethod: POST
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
-  /auth/{proxy}:
+  /auth/{proxy+}:
     parameters:
       - name: proxy
         in: path
@@ -56,7 +56,7 @@ paths:
         httpMethod: POST
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserFunction.Arn}/invocations"
-  /users/{proxy}:
+  /users/{proxy+}:
     parameters:
       - name: proxy
         in: path
@@ -79,7 +79,7 @@ paths:
         httpMethod: POST
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PostsFunction.Arn}/invocations"
-  /posts/{proxy}:
+  /posts/{proxy+}:
     parameters:
       - name: proxy
         in: path
@@ -102,7 +102,7 @@ paths:
         httpMethod: POST
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
-  /groups/{proxy}:
+  /groups/{proxy+}:
     parameters:
       - name: proxy
         in: path
@@ -125,7 +125,7 @@ paths:
         httpMethod: POST
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TasksFunction.Arn}/invocations"
-  /tasks/{proxy}:
+  /tasks/{proxy+}:
     parameters:
       - name: proxy
         in: path
