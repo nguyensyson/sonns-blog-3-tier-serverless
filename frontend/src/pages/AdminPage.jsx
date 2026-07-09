@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useBlog } from '../context/BlogContext';
 import { ACCENTS } from '../data/posts';
 import RichTextEditor from '../components/RichTextEditor/RichTextEditor';
-import { isContentEmpty } from '../utils/contentSerializer';
+import { deserializeContent, isContentEmpty } from '../utils/contentSerializer';
+import { buildToc } from '../utils/toc';
 import { getErrorMessage } from '../api/client';
 
 const EMPTY_FORM = {
@@ -36,6 +37,11 @@ export default function AdminPage() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isFormOpen]);
+
+  const tocPreview = useMemo(
+    () => buildToc(deserializeContent(form.content, form.images || {})).items,
+    [form.content, form.images]
+  );
 
   if (!isLoggedIn) return <Navigate to="/login" replace />;
 
@@ -197,6 +203,18 @@ export default function AdminPage() {
                 images={form.images}
                 onChange={({ content, images }) => setForm((f) => ({ ...f, content, images }))}
               />
+              {tocPreview.length > 0 && (
+                <div className="admin-toc-preview">
+                  <div className="admin-toc-preview-title">Xem trước mục lục</div>
+                  <ul className="admin-toc-preview-list">
+                    {tocPreview.map((item) => (
+                      <li key={item.id} className={`level-${item.level}`}>
+                        {item.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div>
                 <div className="cover-picker-label">Ảnh minh hoạ bài viết</div>
                 <div className="cover-image-picker">

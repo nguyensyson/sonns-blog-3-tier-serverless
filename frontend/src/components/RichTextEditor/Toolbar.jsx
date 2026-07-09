@@ -95,11 +95,16 @@ export default function Toolbar({ editor, onInsertImage }) {
 
       <span className="rte-sep" />
 
-      <select className="rte-select" title="Kiểu đoạn" value={headingValue} onChange={(e) => setHeading(e.target.value)}>
+      <select
+        className="rte-select"
+        title="Đánh dấu mục lục: chọn cấp cho đoạn tiêu đề để tự động tạo mục lục bên trang chi tiết"
+        value={headingValue}
+        onChange={(e) => setHeading(e.target.value)}
+      >
         <option value="p">Đoạn văn</option>
-        <option value="1">Heading 1</option>
-        <option value="2">Heading 2</option>
-        <option value="3">Heading 3</option>
+        <option value="1">Mục lục cấp 1</option>
+        <option value="2">Mục lục cấp 2</option>
+        <option value="3">Mục lục cấp 3</option>
       </select>
 
       <select
