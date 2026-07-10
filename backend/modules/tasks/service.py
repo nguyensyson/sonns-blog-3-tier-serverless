@@ -42,9 +42,9 @@ def list_groups_with_tasks(user_id: str) -> list[dict]:
     return result
 
 
-def create_group(user_id: str, name: str) -> dict:
+def create_group(user_id: str, name: str, description: Optional[str] = None, cover_image_url: Optional[str] = None) -> dict:
     existing = repository.list_groups_by_user(user_id)
-    group = repository.create_group(user_id, name, order=len(existing))
+    group = repository.create_group(user_id, name, order=len(existing), description=description, cover_image_url=cover_image_url)
     return {**group, "tasks": []}
 
 

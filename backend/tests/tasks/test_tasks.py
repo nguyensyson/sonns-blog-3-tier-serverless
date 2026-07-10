@@ -74,6 +74,28 @@ def test_complete_and_reopen_task(client, auth_header):
     assert reopened.json()["data"]["completedAt"] is None
 
 
+def test_create_group_with_description_and_cover_image(client, auth_header):
+    headers = auth_header("user-d")
+    resp = client.post(
+        "/groups",
+        json={"name": "Marketing", "description": "Chiến dịch quý 3", "coverImageUrl": "https://images.example.com/cover.jpg"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["description"] == "Chiến dịch quý 3"
+    assert data["coverImageUrl"] == "https://images.example.com/cover.jpg"
+
+
+def test_create_group_without_description_and_cover_image_defaults_to_null(client, auth_header):
+    headers = auth_header("user-e")
+    resp = client.post("/groups", json={"name": "Cá nhân"}, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["description"] is None
+    assert data["coverImageUrl"] is None
+
+
 def test_reorder_groups_endpoint_not_shadowed_by_group_id_route(client, auth_header):
     headers = auth_header("user-c")
     g1 = client.post("/groups", json={"name": "G1"}, headers=headers).json()["data"]["groupId"]

@@ -27,12 +27,14 @@ def list_groups_by_user(user_id: str) -> list[dict]:
     return response.get("Items", [])
 
 
-def create_group(user_id: str, name: str, order: int) -> dict:
+def create_group(user_id: str, name: str, order: int, description: Optional[str] = None, cover_image_url: Optional[str] = None) -> dict:
     now = _now()
     item = {
         "groupId": str(uuid.uuid4()),
         "userId": user_id,
         "name": name,
+        "description": description,
+        "coverImageUrl": cover_image_url,
         "order": order,
         "createdAt": now,
         "updatedAt": now,

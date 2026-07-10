@@ -19,6 +19,8 @@ function mapGroup(group) {
   return {
     id: group.groupId,
     name: group.name,
+    description: group.description || '',
+    coverImageUrl: group.coverImageUrl || null,
     order: group.order,
     tasks: (group.tasks || []).map(mapTask),
   };
@@ -76,7 +78,7 @@ export function useTasks(enabled) {
     [tasks]
   );
 
-  const addGroup = (name) => tasksApi.createGroup(name).then(refresh);
+  const addGroup = (payload) => tasksApi.createGroup(payload).then(refresh);
 
   const renameGroup = (groupId, name) => tasksApi.renameGroup(groupId, name).then(refresh);
 

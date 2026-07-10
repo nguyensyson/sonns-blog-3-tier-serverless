@@ -52,6 +52,8 @@ stored value follows the frontend, not the spec wording).
 | groupId (PK) | S | UUID |
 | userId | S | owner |
 | name | S | |
+| description | S | optional, nullable, max 200 chars, set at group creation |
+| coverImageUrl | S | optional, nullable, public S3 URL (uploaded via `POST /posts/upload-image`, reused from the blog module) |
 | order | N | display order |
 | createdAt / updatedAt | S | ISO timestamp |
 

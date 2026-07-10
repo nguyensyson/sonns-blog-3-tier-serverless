@@ -17,6 +17,7 @@ import TaskGroupColumn from '../components/tasks/TaskGroupColumn';
 import CompletedTasksPanel from '../components/tasks/CompletedTasksPanel';
 import TaskEditModal from '../components/tasks/TaskEditModal';
 import ConfirmDialog from '../components/tasks/ConfirmDialog';
+import GroupFormModal from '../components/tasks/GroupFormModal';
 import { formatDisplayDate } from '../utils/taskDate';
 import { getErrorMessage } from '../api/client';
 import Spinner from '../components/common/Spinner';
@@ -62,8 +63,7 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState(null);
   const [deletingTask, setDeletingTask] = useState(null);
   const [deletingGroup, setDeletingGroup] = useState(null);
-  const [isAddingGroup, setIsAddingGroup] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
 
   const tasksById = useMemo(() => Object.fromEntries(tasks.map((t) => [t.id, t])), [tasks]);
   const groupsById = useMemo(() => Object.fromEntries(groups.map((g) => [g.id, g])), [groups]);
@@ -140,14 +140,6 @@ export default function TasksPage() {
     reportError(applyReorder(finalContainers));
   };
 
-  const submitNewGroup = (e) => {
-    e.preventDefault();
-    if (!newGroupName.trim()) return;
-    reportError(addGroup(newGroupName.trim()));
-    setNewGroupName('');
-    setIsAddingGroup(false);
-  };
-
   const confirmDeleteForever = () => {
     if (deletingTask) reportError(deleteTask(deletingTask.id));
     setDeletingTask(null);
@@ -162,30 +154,9 @@ export default function TasksPage() {
     <div className="tasks-screen">
       <div className="tasks-header">
         <h1 className="tasks-title">Việc cần làm của tôi</h1>
-        {isAddingGroup ? (
-          <form className="task-group-add-form" onSubmit={submitNewGroup}>
-            <input
-              className="admin-text-input"
-              placeholder="Tên group..."
-              value={newGroupName}
-              autoFocus
-              onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setIsAddingGroup(false);
-              }}
-            />
-            <button type="submit" className="submit-btn">
-              Tạo
-            </button>
-            <button type="button" className="cancel-btn" onClick={() => setIsAddingGroup(false)}>
-              Hủy
-            </button>
-          </form>
-        ) : (
-          <button type="button" className="btn-primary" onClick={() => setIsAddingGroup(true)}>
-            <Plus size={16} /> Tạo Group mới
-          </button>
-        )}
+        <button type="button" className="btn-primary" onClick={() => setIsGroupModalOpen(true)}>
+          <Plus size={16} /> Tạo Group mới
+        </button>
       </div>
 
       {isLoading && <Spinner label="Đang tải..." />}
@@ -238,6 +209,10 @@ export default function TasksPage() {
         onReopen={(taskId) => reportError(reopenTask(taskId))}
         onDeleteForever={setDeletingTask}
       />
+
+      {isGroupModalOpen && (
+        <GroupFormModal onCreate={(payload) => addGroup(payload)} onClose={() => setIsGroupModalOpen(false)} />
+      )}
 
       {editingTask && (
         <TaskEditModal

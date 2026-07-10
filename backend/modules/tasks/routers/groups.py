@@ -22,7 +22,7 @@ def list_groups(current_user: CurrentUser = Depends(get_current_user_required)):
 @router.post("", response_model=SuccessResponse[GroupResponse])
 def create_group(body: GroupCreateRequest, current_user: CurrentUser = Depends(get_current_user_required)):
     """🔒 REQUIRED AUTH"""
-    group = service.create_group(current_user.userId, body.name)
+    group = service.create_group(current_user.userId, body.name, body.description, body.coverImageUrl)
     return success_response(group, "Tạo group thành công.")
 
 

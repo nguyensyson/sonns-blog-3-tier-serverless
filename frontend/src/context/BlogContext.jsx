@@ -3,6 +3,7 @@ import { login as apiLogin } from '../api/auth';
 import { getMe } from '../api/users';
 import { postsApi } from '../api/posts';
 import { getErrorMessage } from '../api/client';
+import { dataUrlToFile } from '../utils/dataUrl';
 
 const TOKEN_KEY = 'authToken';
 const REFRESH_KEY = 'refreshToken';
@@ -39,15 +40,6 @@ async function resolveImages(images) {
     })
   );
   return Object.fromEntries(entries);
-}
-
-function dataUrlToFile(dataUrl, filename) {
-  const [header, base64] = dataUrl.split(',');
-  const mime = /data:(.*?);base64/.exec(header)?.[1] || 'image/png';
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new File([bytes], filename, { type: mime });
 }
 
 function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImageUrl, resources, date }) {

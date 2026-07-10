@@ -2,7 +2,7 @@ import { apiClient } from './client';
 
 export const tasksApi = {
   listGroups: () => apiClient.get('/groups'),
-  createGroup: (name) => apiClient.post('/groups', { name }),
+  createGroup: ({ name, description, coverImageUrl }) => apiClient.post('/groups', { name, description, coverImageUrl }),
   renameGroup: (groupId, name) => apiClient.put(`/groups/${groupId}`, { name }),
   deleteGroup: (groupId) => apiClient.delete(`/groups/${groupId}`),
   reorderGroups: (orderedGroupIds) => apiClient.put('/groups/reorder', { orderedGroupIds }),
