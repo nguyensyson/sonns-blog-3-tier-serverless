@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { tasksApi } from '../api/tasks';
+import { getErrorMessage } from '../api/client';
 
 function mapTask(task) {
   return {
@@ -28,20 +29,29 @@ function mapGroup(group) {
 export function useTasks(enabled) {
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
     const res = await tasksApi.listGroups();
     setGroups(res.data.map(mapGroup));
   }, []);
 
+  const fetchGroups = useCallback(() => {
+    setIsLoading(true);
+    setError('');
+    return refresh()
+      .catch((err) => setError(getErrorMessage(err)))
+      .finally(() => setIsLoading(false));
+  }, [refresh]);
+
   useEffect(() => {
     if (!enabled) {
       setGroups([]);
+      setError('');
       return;
     }
-    setIsLoading(true);
-    refresh().finally(() => setIsLoading(false));
-  }, [enabled, refresh]);
+    fetchGroups();
+  }, [enabled, fetchGroups]);
 
   const sortedGroups = useMemo(() => [...groups].sort((a, b) => a.order - b.order), [groups]);
 
@@ -104,6 +114,8 @@ export function useTasks(enabled) {
     activeTaskIdsByGroup,
     completedTasks,
     isLoading,
+    error,
+    retry: fetchGroups,
     addGroup,
     renameGroup,
     deleteGroup,

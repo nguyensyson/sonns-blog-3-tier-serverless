@@ -95,6 +95,10 @@ export function BlogProvider({ children }) {
   const [authChecked, setAuthChecked] = useState(false);
   const [blogPosts, setBlogPosts] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
+  const [isBlogLoading, setIsBlogLoading] = useState(true);
+  const [blogError, setBlogError] = useState('');
+  const [isJournalLoading, setIsJournalLoading] = useState(false);
+  const [journalError, setJournalError] = useState('');
 
   const loadBlogPosts = useCallback(async () => {
     const res = await postsApi.listBlog();
@@ -106,9 +110,26 @@ export function BlogProvider({ children }) {
     setJournalEntries(res.data.items.map(mapPost));
   }, []);
 
-  useEffect(() => {
-    loadBlogPosts().catch(() => {});
+  const fetchBlogPosts = useCallback(() => {
+    setIsBlogLoading(true);
+    setBlogError('');
+    return loadBlogPosts()
+      .catch((err) => setBlogError(getErrorMessage(err)))
+      .finally(() => setIsBlogLoading(false));
   }, [loadBlogPosts]);
+
+  const fetchJournalEntries = useCallback(() => {
+    setIsJournalLoading(true);
+    setJournalError('');
+    return loadJournalEntries()
+      .catch((err) => setJournalError(getErrorMessage(err)))
+      .finally(() => setIsJournalLoading(false));
+  }, [loadJournalEntries]);
+
+  useEffect(() => {
+    fetchBlogPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Validate any token left over from a previous session before trusting it -
   // it may have expired since the last visit.
@@ -130,10 +151,11 @@ export function BlogProvider({ children }) {
   useEffect(() => {
     if (!isLoggedIn) {
       setJournalEntries([]);
+      setJournalError('');
       return;
     }
-    loadJournalEntries().catch(() => {});
-  }, [isLoggedIn, loadJournalEntries]);
+    fetchJournalEntries();
+  }, [isLoggedIn, fetchJournalEntries]);
 
   const login = async (email, password) => {
     try {
@@ -203,6 +225,12 @@ export function BlogProvider({ children }) {
     () => ({
       blogPosts,
       journalEntries,
+      isBlogLoading,
+      blogError,
+      isJournalLoading,
+      journalError,
+      retryLoadBlogPosts: fetchBlogPosts,
+      retryLoadJournalEntries: fetchJournalEntries,
       isLoggedIn,
       authChecked,
       login,
@@ -212,7 +240,7 @@ export function BlogProvider({ children }) {
       deletePost,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [blogPosts, journalEntries, isLoggedIn, authChecked]
+    [blogPosts, journalEntries, isBlogLoading, blogError, isJournalLoading, journalError, isLoggedIn, authChecked]
   );
 
   return <BlogContext.Provider value={value}>{children}</BlogContext.Provider>;

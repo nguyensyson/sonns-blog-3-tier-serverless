@@ -6,6 +6,8 @@ import RichTextEditor from '../components/RichTextEditor/RichTextEditor';
 import { deserializeContent, isContentEmpty } from '../utils/contentSerializer';
 import { buildToc } from '../utils/toc';
 import { getErrorMessage } from '../api/client';
+import Spinner from '../components/common/Spinner';
+import ErrorMessage from '../components/common/ErrorMessage';
 
 const EMPTY_FORM = {
   title: '',
@@ -22,7 +24,16 @@ const ACCEPTED_COVER_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/web
 const ACCEPTED_RESOURCE_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.pdf', '.zip', '.doc', '.docx', '.txt', '.json'];
 
 export default function AdminPage() {
-  const { blogPosts, isLoggedIn, addPost, updatePost, deletePost } = useBlog();
+  const {
+    blogPosts,
+    isBlogLoading,
+    blogError,
+    retryLoadBlogPosts,
+    isLoggedIn,
+    addPost,
+    updatePost,
+    deletePost,
+  } = useBlog();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -142,31 +153,37 @@ export default function AdminPage() {
           + Tạo bài viết mới
         </button>
       </div>
-      <div className="admin-list">
-        {blogPosts.map((post) => {
-          const accent = ACCENTS[post.coverIndex % 2];
-          return (
-            <div className="admin-list-item" key={post.id}>
-              <span className="cover-dot admin-list-item-dot" style={{ background: accent }} />
-              <div className="admin-list-item-info">
-                <div className="admin-list-item-title">{post.title}</div>
-                <div className="admin-list-item-meta">
-                  {post.tag} · {post.date}
+      {isBlogLoading ? (
+        <Spinner label="Đang tải bài viết..." />
+      ) : blogError ? (
+        <ErrorMessage message={blogError} onRetry={retryLoadBlogPosts} />
+      ) : (
+        <div className="admin-list fade-in">
+          {blogPosts.map((post) => {
+            const accent = ACCENTS[post.coverIndex % 2];
+            return (
+              <div className="admin-list-item" key={post.id}>
+                <span className="cover-dot admin-list-item-dot" style={{ background: accent }} />
+                <div className="admin-list-item-info">
+                  <div className="admin-list-item-title">{post.title}</div>
+                  <div className="admin-list-item-meta">
+                    {post.tag} · {post.date}
+                  </div>
                 </div>
+                <button className="admin-list-item-action edit" onClick={() => startEdit(post)}>
+                  Sửa
+                </button>
+                <button
+                  className="admin-list-item-action delete"
+                  onClick={() => deletePost(post.id, 'blog').catch((err) => window.alert(getErrorMessage(err)))}
+                >
+                  Xóa
+                </button>
               </div>
-              <button className="admin-list-item-action edit" onClick={() => startEdit(post)}>
-                Sửa
-              </button>
-              <button
-                className="admin-list-item-action delete"
-                onClick={() => deletePost(post.id, 'blog').catch((err) => window.alert(getErrorMessage(err)))}
-              >
-                Xóa
-              </button>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {isFormOpen && (
         <div className="modal-overlay" onClick={closeForm}>

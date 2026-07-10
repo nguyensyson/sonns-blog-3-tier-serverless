@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { useBlog } from '../context/BlogContext';
 import PostCard from '../components/PostCard';
 import TagFilter from '../components/TagFilter';
+import Spinner from '../components/common/Spinner';
+import ErrorMessage from '../components/common/ErrorMessage';
 
 export default function HomePage() {
-  const { blogPosts: posts } = useBlog();
+  const { blogPosts: posts, isBlogLoading, blogError, retryLoadBlogPosts } = useBlog();
   const [search, setSearch] = useState('');
   const [activeTag, setActiveTag] = useState('Tất cả');
 
@@ -44,10 +46,14 @@ export default function HomePage() {
 
       <TagFilter tags={tags} activeTag={activeTag} onSelect={setActiveTag} />
 
-      {filteredPosts.length === 0 ? (
+      {isBlogLoading ? (
+        <Spinner label="Đang tải bài viết..." />
+      ) : blogError ? (
+        <ErrorMessage message={blogError} onRetry={retryLoadBlogPosts} />
+      ) : filteredPosts.length === 0 ? (
         <div className="no-results">Không tìm thấy bài viết phù hợp.</div>
       ) : (
-        <div className="post-grid">
+        <div className="post-grid fade-in">
           {filteredPosts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}

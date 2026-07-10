@@ -19,6 +19,8 @@ import TaskEditModal from '../components/tasks/TaskEditModal';
 import ConfirmDialog from '../components/tasks/ConfirmDialog';
 import { formatDisplayDate } from '../utils/taskDate';
 import { getErrorMessage } from '../api/client';
+import Spinner from '../components/common/Spinner';
+import ErrorMessage from '../components/common/ErrorMessage';
 
 function findContainer(containers, id) {
   if (id in containers) return id;
@@ -40,6 +42,8 @@ export default function TasksPage() {
     activeTaskIdsByGroup,
     completedTasks,
     isLoading,
+    error: loadError,
+    retry,
     addGroup,
     renameGroup,
     deleteGroup,
@@ -184,8 +188,10 @@ export default function TasksPage() {
         )}
       </div>
 
-      {isLoading && <div className="no-results">Đang tải...</div>}
+      {isLoading && <Spinner label="Đang tải..." />}
+      {!isLoading && loadError && <ErrorMessage message={loadError} onRetry={retry} />}
 
+      {!isLoading && !loadError && (
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -194,7 +200,7 @@ export default function TasksPage() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={groups.map((g) => g.id)} strategy={rectSortingStrategy}>
-          <div className="task-groups-row">
+          <div className="task-groups-row fade-in">
             {groups.map((group) => (
               <TaskGroupColumn
                 key={group.id}
@@ -224,6 +230,7 @@ export default function TasksPage() {
           ) : null}
         </DragOverlay>
       </DndContext>
+      )}
 
       <CompletedTasksPanel
         tasks={completedTasks}

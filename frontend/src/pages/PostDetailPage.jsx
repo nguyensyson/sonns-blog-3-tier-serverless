@@ -6,6 +6,8 @@ import { getErrorMessage } from '../api/client';
 import { ACCENTS } from '../data/posts';
 import { deserializeContent } from '../utils/contentSerializer';
 import { buildToc } from '../utils/toc';
+import Spinner from '../components/common/Spinner';
+import ErrorMessage from '../components/common/ErrorMessage';
 
 export default function PostDetailPage() {
   const { id } = useParams();
@@ -16,7 +18,7 @@ export default function PostDetailPage() {
   const [activeHeadingId, setActiveHeadingId] = useState('');
   const contentRef = useRef(null);
 
-  useEffect(() => {
+  const fetchPost = () => {
     setIsLoading(true);
     setError('');
     postsApi
@@ -24,6 +26,11 @@ export default function PostDetailPage() {
       .then((res) => setPost(res.data))
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchPost();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const { html: renderedHtml, items: tocItems } = useMemo(() => {
@@ -68,7 +75,7 @@ export default function PostDetailPage() {
     return (
       <div className="detail-screen">
         <div className="detail-wrap">
-          <div className="no-results">Đang tải bài viết...</div>
+          <Spinner label="Đang tải bài viết..." />
         </div>
       </div>
     );
@@ -81,7 +88,7 @@ export default function PostDetailPage() {
           <button className="back-link" onClick={() => navigate('/')}>
             ← Quay lại danh sách
           </button>
-          <div className="no-results">{error || 'Không tìm thấy bài viết.'}</div>
+          <ErrorMessage message={error || 'Không tìm thấy bài viết.'} onRetry={error ? fetchPost : undefined} />
         </div>
       </div>
     );
@@ -108,7 +115,7 @@ export default function PostDetailPage() {
 
   return (
     <div className="detail-screen">
-      <div className={`detail-wrap${hasToc ? ' has-toc' : ''}`}>
+      <div className={`detail-wrap fade-in${hasToc ? ' has-toc' : ''}`}>
         {hasToc && (
           <aside className="detail-toc">
             <div className="detail-toc-title">Mục lục</div>

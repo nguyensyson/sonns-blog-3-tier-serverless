@@ -3,11 +3,22 @@ import { Navigate } from 'react-router-dom';
 import { useBlog } from '../context/BlogContext';
 import { ACCENTS } from '../data/posts';
 import { getErrorMessage } from '../api/client';
+import Spinner from '../components/common/Spinner';
+import ErrorMessage from '../components/common/ErrorMessage';
 
 const EMPTY_FORM = { title: '', tag: '', excerpt: '', date: '', coverIndex: 0, content: '', images: {} };
 
 export default function JournalPage() {
-  const { journalEntries, isLoggedIn, addPost, updatePost, deletePost } = useBlog();
+  const {
+    journalEntries,
+    isJournalLoading,
+    journalError,
+    retryLoadJournalEntries,
+    isLoggedIn,
+    addPost,
+    updatePost,
+    deletePost,
+  } = useBlog();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -86,10 +97,14 @@ export default function JournalPage() {
         </button>
       </div>
 
-      {journalEntries.length === 0 ? (
+      {isJournalLoading ? (
+        <Spinner label="Đang tải nhật ký..." />
+      ) : journalError ? (
+        <ErrorMessage message={journalError} onRetry={retryLoadJournalEntries} />
+      ) : journalEntries.length === 0 ? (
         <div className="no-results">Chưa có mục nhật ký nào.</div>
       ) : (
-        <div className="timeline">
+        <div className="timeline fade-in">
           {journalEntries.map((entry) => {
             const accent = ACCENTS[entry.coverIndex % 2];
             return (
