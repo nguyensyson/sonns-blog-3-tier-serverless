@@ -14,8 +14,8 @@ export default function App() {
     <BlogProvider>
       <HashRouter>
         <div className="app-shell">
-          <div className="glow-left" />
-          <div className="glow-right" />
+          {/* <div className="glow-left" />
+          <div className="glow-right" /> */}
           <Header />
           <Routes>
             <Route path="/" element={<HomePage />} />
