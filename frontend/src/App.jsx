@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import { BlogProvider } from './context/BlogContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import PostDetailPage from './pages/PostDetailPage';
 import LoginPage from './pages/LoginPage';
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/tasks" element={<TasksPage />} />
           </Routes>
           <Footer />
+          <ScrollToTop />
         </div>
       </HashRouter>
     </BlogProvider>
