@@ -22,6 +22,7 @@ function mapPost(post) {
     coverImageUrl: post.coverImageUrl || '',
     resources: post.resources || [],
     date: post.date,
+    status: post.status || 'published',
     readTime: post.readTime,
     isOwner: post.isOwner,
   };
@@ -42,7 +43,7 @@ async function resolveImages(images) {
   return Object.fromEntries(entries);
 }
 
-function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImageUrl, resources, date }) {
+function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImageUrl, resources, date, status }) {
   return {
     title,
     tag: (tag || '').trim(),
@@ -53,6 +54,7 @@ function toApiBody({ title, tag, excerpt, content, images, coverIndex, coverImag
     coverImageUrl: coverImageUrl || null,
     resources: resources || [],
     date,
+    status: status || 'published',
   };
 }
 
@@ -86,15 +88,26 @@ export function BlogProvider({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [blogPosts, setBlogPosts] = useState([]);
+  const [myBlogPosts, setMyBlogPosts] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [isBlogLoading, setIsBlogLoading] = useState(true);
   const [blogError, setBlogError] = useState('');
+  const [isMyBlogLoading, setIsMyBlogLoading] = useState(false);
+  const [myBlogError, setMyBlogError] = useState('');
   const [isJournalLoading, setIsJournalLoading] = useState(false);
   const [journalError, setJournalError] = useState('');
 
   const loadBlogPosts = useCallback(async () => {
     const res = await postsApi.listBlog();
     setBlogPosts(res.data.items.map(mapPost));
+  }, []);
+
+  // Fetches the caller's own blog posts of any status (draft/published) so
+  // the admin dashboard can manage private posts, unlike the public list
+  // above which only ever returns published ones.
+  const loadMyBlogPosts = useCallback(async () => {
+    const res = await postsApi.listMyBlog({ limit: 100 });
+    setMyBlogPosts(res.data.items.map(mapPost));
   }, []);
 
   const loadJournalEntries = useCallback(async () => {
@@ -109,6 +122,14 @@ export function BlogProvider({ children }) {
       .catch((err) => setBlogError(getErrorMessage(err)))
       .finally(() => setIsBlogLoading(false));
   }, [loadBlogPosts]);
+
+  const fetchMyBlogPosts = useCallback(() => {
+    setIsMyBlogLoading(true);
+    setMyBlogError('');
+    return loadMyBlogPosts()
+      .catch((err) => setMyBlogError(getErrorMessage(err)))
+      .finally(() => setIsMyBlogLoading(false));
+  }, [loadMyBlogPosts]);
 
   const fetchJournalEntries = useCallback(() => {
     setIsJournalLoading(true);
@@ -144,10 +165,13 @@ export function BlogProvider({ children }) {
     if (!isLoggedIn) {
       setJournalEntries([]);
       setJournalError('');
+      setMyBlogPosts([]);
+      setMyBlogError('');
       return;
     }
     fetchJournalEntries();
-  }, [isLoggedIn, fetchJournalEntries]);
+    fetchMyBlogPosts();
+  }, [isLoggedIn, fetchJournalEntries, fetchMyBlogPosts]);
 
   const login = async (email, password) => {
     try {
@@ -183,7 +207,7 @@ export function BlogProvider({ children }) {
       await loadJournalEntries();
     } else {
       await postsApi.createBlog(body);
-      await loadBlogPosts();
+      await Promise.all([loadBlogPosts(), loadMyBlogPosts()]);
     }
   };
 
@@ -198,7 +222,7 @@ export function BlogProvider({ children }) {
       await loadJournalEntries();
     } else {
       await postsApi.updateBlog(id, body);
-      await loadBlogPosts();
+      await Promise.all([loadBlogPosts(), loadMyBlogPosts()]);
     }
   };
 
@@ -210,18 +234,23 @@ export function BlogProvider({ children }) {
     } else {
       await postsApi.deleteBlog(id);
       setBlogPosts((prev) => prev.filter((p) => p.id !== id));
+      setMyBlogPosts((prev) => prev.filter((p) => p.id !== id));
     }
   };
 
   const value = useMemo(
     () => ({
       blogPosts,
+      myBlogPosts,
       journalEntries,
       isBlogLoading,
       blogError,
+      isMyBlogLoading,
+      myBlogError,
       isJournalLoading,
       journalError,
       retryLoadBlogPosts: fetchBlogPosts,
+      retryLoadMyBlogPosts: fetchMyBlogPosts,
       retryLoadJournalEntries: fetchJournalEntries,
       isLoggedIn,
       authChecked,
@@ -232,7 +261,19 @@ export function BlogProvider({ children }) {
       deletePost,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [blogPosts, journalEntries, isBlogLoading, blogError, isJournalLoading, journalError, isLoggedIn, authChecked]
+    [
+      blogPosts,
+      myBlogPosts,
+      journalEntries,
+      isBlogLoading,
+      blogError,
+      isMyBlogLoading,
+      myBlogError,
+      isJournalLoading,
+      journalError,
+      isLoggedIn,
+      authChecked,
+    ]
   );
 
   return <BlogContext.Provider value={value}>{children}</BlogContext.Provider>;

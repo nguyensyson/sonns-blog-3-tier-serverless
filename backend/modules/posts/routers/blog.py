@@ -27,6 +27,19 @@ def list_blog(
     return success_response({"items": items, "nextCursor": next_cursor})
 
 
+@router.get("/mine", response_model=SuccessResponse[PaginatedPosts])
+def list_my_blog(
+    limit: int = Query(default=100, ge=1, le=100),
+    cursor: Optional[str] = None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user_required),
+):
+    """🔒 REQUIRED AUTH - the caller's own blog posts of any status (draft/published), for the admin dashboard."""
+    items, next_cursor = service.list_my_blog(current_user.userId, limit, cursor, search, status)
+    return success_response({"items": items, "nextCursor": next_cursor})
+
+
 @router.get("/{post_id}", response_model=SuccessResponse[PostResponse])
 def get_blog(post_id: str, current_user: Optional[CurrentUser] = Depends(get_current_user_optional)):
     """🌐 PUBLIC + 🔓 OPTIONAL AUTH (adds isOwner when the caller is the author)."""

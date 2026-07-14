@@ -4,6 +4,7 @@ from typing import Optional
 
 import repository
 from auth.ownership import assert_owner
+from models import ALLOWED_STATUSES
 from utils.exceptions import NotFoundError
 
 _TAG_RE = re.compile(r"<[^>]*>")
@@ -89,6 +90,18 @@ def update_blog(post_id: str, author_id: str, body) -> dict:
 def delete_blog(post_id: str, author_id: str) -> None:
     _get_owned(post_id, author_id, "blog")
     repository.delete(post_id)
+
+
+def list_my_blog(author_id: str, limit: int, cursor: Optional[str], search: Optional[str], status: Optional[str]):
+    status_filter = status if status in ALLOWED_STATUSES else None
+    items, next_cursor = repository.list_by_author(author_id, limit, cursor, category="blog", status=status_filter)
+    if search:
+        needle = search.strip().lower()
+        items = [
+            p for p in items
+            if needle in p["title"].lower() or needle in p.get("excerpt", "").lower()
+        ]
+    return [_to_response(p, author_id) for p in items], next_cursor
 
 
 # --- Diary / journal (category="journal", private) ---

@@ -90,3 +90,33 @@ def test_diary_list_never_returns_another_users_entries(client, auth_header):
     client.post("/posts/diary", json=DIARY_PAYLOAD, headers=auth_header("user-a"))
     listing = client.get("/posts/diary", headers=auth_header("user-b"))
     assert listing.json()["data"]["items"] == []
+
+
+def test_my_blog_list_includes_drafts_but_only_own_posts(client, auth_header):
+    owner_headers = auth_header("mine-owner")
+    client.post("/posts/blog", json=BLOG_PAYLOAD, headers=owner_headers)
+    draft = {**BLOG_PAYLOAD, "title": "Bài nháp riêng tư", "status": "draft"}
+    client.post("/posts/blog", json=draft, headers=owner_headers)
+    client.post("/posts/blog", json=BLOG_PAYLOAD, headers=auth_header("mine-other"))
+
+    listing = client.get("/posts/blog/mine", headers=owner_headers)
+    assert listing.status_code == 200
+    titles = [p["title"] for p in listing.json()["data"]["items"]]
+    assert titles.count("Bài viết test") == 1
+    assert "Bài nháp riêng tư" in titles
+
+
+def test_my_blog_list_requires_auth(client):
+    resp = client.get("/posts/blog/mine")
+    assert resp.status_code == 401
+
+
+def test_my_blog_list_status_filter(client, auth_header):
+    owner_headers = auth_header("mine-filter")
+    client.post("/posts/blog", json=BLOG_PAYLOAD, headers=owner_headers)
+    draft = {**BLOG_PAYLOAD, "title": "Bài nháp riêng tư", "status": "draft"}
+    client.post("/posts/blog", json=draft, headers=owner_headers)
+
+    listing = client.get("/posts/blog/mine?status=draft", headers=owner_headers)
+    titles = [p["title"] for p in listing.json()["data"]["items"]]
+    assert titles == ["Bài nháp riêng tư"]

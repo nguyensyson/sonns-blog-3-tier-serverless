@@ -19,16 +19,22 @@ const EMPTY_FORM = {
   coverImageUrl: '',
   resources: [],
   resourceFiles: [],
+  status: 'published',
 };
 const ACCEPTED_COVER_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const ACCEPTED_RESOURCE_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.pdf', '.zip', '.doc', '.docx', '.txt', '.json'];
+const STATUS_FILTERS = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'published', label: 'Công khai' },
+  { value: 'draft', label: 'Riêng tư' },
+];
 
 export default function AdminPage() {
   const {
-    blogPosts,
-    isBlogLoading,
-    blogError,
-    retryLoadBlogPosts,
+    myBlogPosts: blogPosts,
+    isMyBlogLoading: isBlogLoading,
+    myBlogError: blogError,
+    retryLoadMyBlogPosts: retryLoadBlogPosts,
     isLoggedIn,
     addPost,
     updatePost,
@@ -39,6 +45,8 @@ export default function AdminPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     if (!isFormOpen) return;
@@ -53,6 +61,19 @@ export default function AdminPage() {
     () => buildToc(deserializeContent(form.content, form.images || {})).items,
     [form.content, form.images]
   );
+
+  const filteredPosts = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return blogPosts.filter((post) => {
+      const matchesStatus = statusFilter === 'all' || (post.status || 'published') === statusFilter;
+      const matchesSearch =
+        !needle ||
+        post.title.toLowerCase().includes(needle) ||
+        post.excerpt.toLowerCase().includes(needle) ||
+        (post.tag || '').toLowerCase().includes(needle);
+      return matchesStatus && matchesSearch;
+    });
+  }, [blogPosts, search, statusFilter]);
 
   if (!isLoggedIn) return <Navigate to="/login" replace />;
 
@@ -141,6 +162,7 @@ export default function AdminPage() {
       coverImageUrl: post.coverImageUrl || '',
       resources: post.resources || [],
       resourceFiles: [],
+      status: post.status || 'published',
     });
     setIsFormOpen(true);
   };
@@ -153,14 +175,39 @@ export default function AdminPage() {
           + Tạo bài viết mới
         </button>
       </div>
+
+      <div className="admin-list-filter">
+        <input
+          className="search-input"
+          placeholder="Tìm bài viết theo tiêu đề, mô tả, tag..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="tag-filter">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              className={`tag-pill${statusFilter === f.value ? ' active' : ''}`}
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isBlogLoading ? (
         <Spinner label="Đang tải bài viết..." />
       ) : blogError ? (
         <ErrorMessage message={blogError} onRetry={retryLoadBlogPosts} />
+      ) : filteredPosts.length === 0 ? (
+        <div className="no-results">Không tìm thấy bài viết phù hợp.</div>
       ) : (
         <div className="admin-list fade-in">
-          {blogPosts.map((post) => {
+          {filteredPosts.map((post) => {
             const accent = ACCENTS[post.coverIndex % 2];
+            const isPublished = (post.status || 'published') === 'published';
             return (
               <div className="admin-list-item" key={post.id}>
                 <span className="cover-dot admin-list-item-dot" style={{ background: accent }} />
@@ -170,6 +217,9 @@ export default function AdminPage() {
                     {post.tag} · {post.date}
                   </div>
                 </div>
+                <span className={`status-pill${isPublished ? ' public' : ' private'}`}>
+                  {isPublished ? 'Công khai' : 'Riêng tư'}
+                </span>
                 <button className="admin-list-item-action edit" onClick={() => startEdit(post)}>
                   Sửa
                 </button>
@@ -214,6 +264,28 @@ export default function AdminPage() {
                 value={form.excerpt}
                 onChange={updateField('excerpt')}
               />
+              <div>
+                <div className="cover-picker-label">Chế độ hiển thị</div>
+                <div className="cover-picker-options">
+                  {[
+                    { value: 'published', label: 'Công khai' },
+                    { value: 'draft', label: 'Riêng tư' },
+                  ].map((opt) => {
+                    const selected = form.status === opt.value;
+                    return (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        className={`cover-option${selected ? ' selected' : ''}`}
+                        style={{ borderColor: selected ? '#34d399' : undefined, color: selected ? '#34d399' : undefined }}
+                        onClick={() => setForm((f) => ({ ...f, status: opt.value }))}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <RichTextEditor
                 key={editingId ?? 'new'}
                 content={form.content}

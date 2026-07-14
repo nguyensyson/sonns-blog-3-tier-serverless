@@ -81,15 +81,25 @@ def list_by_category(category: str, limit: int, cursor: Optional[str], only_publ
     return response.get("Items", []), _encode_cursor(response.get("LastEvaluatedKey"))
 
 
-def list_by_author(author_id: str, limit: int, cursor: Optional[str], category: Optional[str] = None):
+def list_by_author(
+    author_id: str,
+    limit: int,
+    cursor: Optional[str],
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+):
     kwargs = {
         "IndexName": "authorId-createdAt-index",
         "KeyConditionExpression": Key("authorId").eq(author_id),
         "ScanIndexForward": False,
         "Limit": limit,
     }
-    if category:
-        kwargs["FilterExpression"] = Attr("category").eq(category)
+    filter_expr = Attr("category").eq(category) if category else None
+    if status:
+        status_expr = Attr("status").eq(status)
+        filter_expr = status_expr if filter_expr is None else filter_expr & status_expr
+    if filter_expr is not None:
+        kwargs["FilterExpression"] = filter_expr
     start_key = _decode_cursor(cursor)
     if start_key:
         kwargs["ExclusiveStartKey"] = start_key

@@ -11,6 +11,8 @@ function buildQuery(params) {
 
 export const postsApi = {
   listBlog: ({ limit, cursor, search } = {}) => apiClient.get(`/posts/blog${buildQuery({ limit, cursor, search })}`),
+  listMyBlog: ({ limit, cursor, search, status } = {}) =>
+    apiClient.get(`/posts/blog/mine${buildQuery({ limit, cursor, search, status })}`),
   getBlog: (postId) => apiClient.get(`/posts/blog/${postId}`),
   createBlog: (body) => apiClient.post('/posts/blog', body),
   updateBlog: (postId, body) => apiClient.put(`/posts/blog/${postId}`, body),
