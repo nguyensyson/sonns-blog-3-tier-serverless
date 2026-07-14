@@ -71,7 +71,12 @@ def list_public_blog(limit: int, cursor: Optional[str], search: Optional[str]):
 
 def get_public_blog(post_id: str, current_user_id: Optional[str]) -> dict:
     post = repository.get_by_id(post_id)
-    if not post or post["category"] != "blog" or post.get("status") != "published":
+    if not post or post["category"] != "blog":
+        raise NotFoundError("Không tìm thấy bài viết.")
+    is_owner = current_user_id is not None and post["authorId"] == current_user_id
+    # Draft/private posts stay 404 for everyone except their own author, who
+    # can still open the detail page (e.g. from the admin list) to preview it.
+    if post.get("status") != "published" and not is_owner:
         raise NotFoundError("Không tìm thấy bài viết.")
     return _to_response(post, current_user_id)
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useBlog } from '../context/BlogContext';
 import { ACCENTS } from '../data/posts';
 import RichTextEditor from '../components/RichTextEditor/RichTextEditor';
@@ -212,7 +212,9 @@ export default function AdminPage() {
               <div className="admin-list-item" key={post.id}>
                 <span className="cover-dot admin-list-item-dot" style={{ background: accent }} />
                 <div className="admin-list-item-info">
-                  <div className="admin-list-item-title">{post.title}</div>
+                  <Link to={`/post/${post.id}`} className="admin-list-item-title" title={post.title}>
+                    {post.title}
+                  </Link>
                   <div className="admin-list-item-meta">
                     {post.tag} · {post.date}
                   </div>

@@ -111,6 +111,24 @@ def test_my_blog_list_requires_auth(client):
     assert resp.status_code == 401
 
 
+def test_draft_blog_detail_visible_only_to_owner(client, auth_header):
+    owner_headers = auth_header("draft-owner")
+    draft = {**BLOG_PAYLOAD, "title": "Bài nháp riêng tư", "status": "draft"}
+    create = client.post("/posts/blog", json=draft, headers=owner_headers)
+    post_id = create.json()["data"]["postId"]
+
+    as_owner = client.get(f"/posts/blog/{post_id}", headers=owner_headers)
+    assert as_owner.status_code == 200
+    assert as_owner.json()["data"]["isOwner"] is True
+
+    anonymous = client.get(f"/posts/blog/{post_id}")
+    assert anonymous.status_code == 404
+
+    other_headers = auth_header("draft-intruder")
+    as_other = client.get(f"/posts/blog/{post_id}", headers=other_headers)
+    assert as_other.status_code == 404
+
+
 def test_my_blog_list_status_filter(client, auth_header):
     owner_headers = auth_header("mine-filter")
     client.post("/posts/blog", json=BLOG_PAYLOAD, headers=owner_headers)
