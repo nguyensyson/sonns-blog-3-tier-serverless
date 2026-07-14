@@ -1477,6 +1477,7 @@ textarea:focus {
   line-height: 1.75;
   color: #c7cfcd;
   max-width: 700px;
+  white-space: pre-line;
 }
 
 /* Task manager */
