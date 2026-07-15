@@ -2,11 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { login as apiLogin } from '../api/auth';
 import { getMe } from '../api/users';
 import { postsApi } from '../api/posts';
-import { getErrorMessage } from '../api/client';
+import { getErrorMessage, TOKEN_KEY, REFRESH_KEY } from '../api/client';
 import { dataUrlToFile } from '../utils/dataUrl';
-
-const TOKEN_KEY = 'authToken';
-const REFRESH_KEY = 'refreshToken';
 
 function mapPost(post) {
   return {

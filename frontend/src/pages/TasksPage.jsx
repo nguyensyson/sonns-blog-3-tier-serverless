@@ -36,7 +36,7 @@ function reportError(promise) {
 }
 
 export default function TasksPage() {
-  const { isLoggedIn } = useBlog();
+  const { isLoggedIn, authChecked } = useBlog();
   const {
     groups,
     tasks,
@@ -74,6 +74,7 @@ export default function TasksPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  if (!authChecked) return <Spinner />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
 
   const handleDragStart = (event) => {

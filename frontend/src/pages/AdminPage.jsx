@@ -36,6 +36,7 @@ export default function AdminPage() {
     myBlogError: blogError,
     retryLoadMyBlogPosts: retryLoadBlogPosts,
     isLoggedIn,
+    authChecked,
     addPost,
     updatePost,
     deletePost,
@@ -75,6 +76,7 @@ export default function AdminPage() {
     });
   }, [blogPosts, search, statusFilter]);
 
+  if (!authChecked) return <Spinner />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
