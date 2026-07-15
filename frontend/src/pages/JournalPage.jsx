@@ -15,6 +15,7 @@ export default function JournalPage() {
     journalError,
     retryLoadJournalEntries,
     isLoggedIn,
+    authChecked,
     addPost,
     updatePost,
     deletePost,
@@ -34,6 +35,7 @@ export default function JournalPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isFormOpen]);
 
+  if (!authChecked) return <Spinner />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
 
   const updateField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
