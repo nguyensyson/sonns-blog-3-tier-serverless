@@ -3,6 +3,7 @@ import { BlogProvider } from './context/BlogContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import FloatingButtons from './components/FloatingButtons';
 import HomePage from './pages/HomePage';
 import PostDetailPage from './pages/PostDetailPage';
 import LoginPage from './pages/LoginPage';
@@ -28,6 +29,7 @@ export default function App() {
           </Routes>
           <Footer />
           <ScrollToTop />
+          <FloatingButtons />
         </div>
       </HashRouter>
     </BlogProvider>
